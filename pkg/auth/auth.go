@@ -78,7 +78,7 @@ func ValidateSecurityStamp(a, b []byte) bool {
 	return slices.Equal(a, b)
 }
 
-func encodeAuthToken(key *ecdsa.PrivateKey, cv CookieValue) (token string, err error) {
+func encodeAuthToken(key *ecdsa.PrivateKey, cv *CookieValue) (token string, err error) {
 	signedBytes, err := key.Sign(rand.Reader, cv.Digest(), nil)
 	if err != nil {
 		return

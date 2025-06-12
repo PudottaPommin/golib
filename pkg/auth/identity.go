@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid/v5"
 )
 
 type (

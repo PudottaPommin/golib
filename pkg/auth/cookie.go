@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/gofrs/uuid/v5"
 )
 
 var (
@@ -21,22 +20,21 @@ type CookieValue struct {
 	Signature     []byte    `json:"signature"`
 }
 
+func NewCookieValue(id uuid.UUID, username string, securityStamp []byte) *CookieValue {
+	return &CookieValue{ID: id, Username: username, SecurityStamp: securityStamp}
+}
+
 func (cv *CookieValue) Digest() []byte {
 	bytes := make([]byte, 49)
 	copy(bytes, cv.ID[:])
 	bytes[16] = byte(';')
 	copy(bytes[17:], cv.SecurityStamp)
 	bytes[33] = byte(';')
-	timebytes, _ := cv.Timestamp.MarshalBinary()
-	copy(bytes[34:], timebytes)
+	tb, _ := cv.Timestamp.MarshalBinary()
+	copy(bytes[34:], tb)
 	return bytes
 }
-
-func NewCookieValue(id uuid.UUID, securityStamp []byte) CookieValue {
-	return CookieValue{ID: id, SecurityStamp: securityStamp}
-}
-
-func WithCookie(c echo.Context, cfg *Config, cv CookieValue) error {
+func (cv *CookieValue) WriteToRequest(w http.ResponseWriter, cfg *Config) error {
 	cv.Timestamp = time.Now().UTC().Add(cfg.expiration)
 	token, err := encodeAuthToken(cfg.SigningKey(), cv)
 	if err != nil {
@@ -50,13 +48,12 @@ func WithCookie(c echo.Context, cfg *Config, cv CookieValue) error {
 	cookie.Secure = true
 	cookie.SameSite = http.SameSiteStrictMode
 	cookie.Expires = cv.Timestamp
-	c.SetCookie(cookie)
-
+	http.SetCookie(w, cookie)
 	return nil
 }
 
-func GetCookie(c echo.Context, cfg *Config) (cv *CookieValue, err error) {
-	cookie, err := c.Cookie(cfg.cookieName)
+func GetCookie(r *http.Request, cfg *Config) (cv *CookieValue, err error) {
+	cookie, err := r.Cookie(cfg.cookieName)
 	if err != nil {
 		return cv, ErrorAuthCookieMissing
 	}
@@ -68,17 +65,18 @@ func GetCookie(c echo.Context, cfg *Config) (cv *CookieValue, err error) {
 
 	cv, err = decodeAuthToken(cfg.SigningKey(), cookie.Value)
 	if err == nil && cfg.isSliding && cv.Timestamp.UTC().Sub(time.Now().UTC()) < (time.Minute*15) {
-		err = WithCookie(c, cfg, *cv)
+		// @todo
+		// err = WithCookie(c, cfg, *cv)
 	}
 	return
 }
 
-func DeleteCookie(c echo.Context, cfg *Config) error {
-	cookie, err := c.Cookie(cfg.cookieName)
+func DeleteCookie(r *http.Request, w http.ResponseWriter, cfg *Config) error {
+	cookie, err := r.Cookie(cfg.cookieName)
 	if err != nil {
 		return err
 	}
 	cookie.MaxAge = -1
-	c.SetCookie(cookie)
+	http.SetCookie(w, cookie)
 	return nil
 }

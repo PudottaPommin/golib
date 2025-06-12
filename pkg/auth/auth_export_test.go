@@ -2,7 +2,7 @@ package auth
 
 import "crypto/ecdsa"
 
-func EncodeAuthToken(key *ecdsa.PrivateKey, cv CookieValue) (token string, err error) {
+func EncodeAuthToken(key *ecdsa.PrivateKey, cv *CookieValue) (token string, err error) {
 	return encodeAuthToken(key, cv)
 }
 

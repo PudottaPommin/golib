@@ -1,4 +1,4 @@
-package auth_test
+package auth
 
 import (
 	"crypto/ecdsa"
@@ -7,8 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/google/uuid"
-	"github.com/pudottapommin/golib/pkg/auth"
+	"github.com/gofrs/uuid/v5"
 )
 
 const certStr = `
@@ -23,8 +22,8 @@ aY/ZcvurufEBuk+xY6ts/5cq/0hV4Ns=
 func TestGenerateSignedCookie(t *testing.T) {
 	key := getEcdsaKey(t)
 
-	cv := auth.NewCookieValue(uuid.MustParse("00000000-0000-0000-0000-000000000000"), []byte("test2"))
-	token, err := auth.EncodeAuthToken(key, cv)
+	cv := NewCookieValue(uuid.FromStringOrNil("00000000-0000-0000-0000-000000000000"), "username", []byte("test2"))
+	token, err := EncodeAuthToken(key, cv)
 	if err != nil {
 		t.Error(err)
 	}
@@ -34,16 +33,20 @@ func TestGenerateSignedCookie(t *testing.T) {
 }
 
 func TestDecodeAuthToken(t *testing.T) {
-	const s = "eyJpZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInNlY3VyaXR5U3RhbXAiOiJkR1Z6ZERJPSIsInRpbWVzdGFtcCI6IjAwMDEtMDEtMDFUMDA6MDA6MDBaIiwic2lnbmF0dXJlIjoiTUdVQ01CK1o3MmxZNzRTelMzWHNuSWZsYURHTC92aVBwTHJRaEMwUHA1SUtHdFVTWmtMMUNhMVNLL0d2VFJxMWw0ckhJZ0l4QU0vV1lRK0FxTXJNdytRRWR0bUpRL3lIa1lzREYyNU1PUDJrWDQwSDB0bklFMmEyZzBLRUJiS1NZOEJ0cmRQbDFRPT0ifQ=="
+	const s = "eyJpZCI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInVzZXJuYW1lIjoidXNlcm5hbWUiLCJzZWN1cml0eVN0YW1wIjoiZEdWemREST0iLCJ0aW1lc3RhbXAiOiIwMDAxLTAxLTAxVDAwOjAwOjAwWiIsInNpZ25hdHVyZSI6Ik1HVUNNUUN0VDI3UVllU3JRQkhSaURrLzU4Ymg5aFRsaTNiejRlNmxBaVpFRVZOZENUYllvY2JtdFR4S1lsMTExckVBNUpjQ01CTGJhNllPQmlRWmVGaDgxL3doRG1EMnBJTFNHVGlkUjJjTlVTQ05GUXBVbEt6OStQUGtQOW15MVl5WURNdHFOUT09In0="
 
 	key := getEcdsaKey(t)
-	cv, err := auth.DecodeAuthToken(key, s)
+	cv, err := DecodeAuthToken(key, s)
 	if err != nil {
 		t.Error(err)
 	}
 
 	if cv.ID.String() != "00000000-0000-0000-0000-000000000000" {
 		t.Error("IDs don't match")
+	}
+
+	if cv.Username != "username" {
+		t.Error("Usernames don't match")
 	}
 
 	if !slices.Equal(cv.SecurityStamp, []byte("test2")) {
