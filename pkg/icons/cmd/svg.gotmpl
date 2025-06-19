@@ -1,0 +1,23 @@
+{{- /*gotype:github.com/pudottapommin/golib/pkg/icons/cmd.IconifyHugeicons*/ -}}
+package {{.Prefix}}
+
+import (
+	g "maragu.dev/gomponents"
+	h "maragu.dev/gomponents/html"
+)
+
+var (
+	hAttr   = g.Attr("height", "{{ .Info.Height }}")
+	wAttr   = g.Attr("width", "{{ .Info.Height }}")
+	vbAttr = g.Attr("viewbox", "0 0 {{ .Info.Height }} {{ .Info.Height }}")
+)
+{{ range $key, $icon := .Icons -}}
+// {{ pascal $key }}
+// See https://icon-sets.iconify.design/hugeicons/?icon-filter={{ $key }}
+func {{ pascal $key }}(children ...g.Node) g.Node {
+	return h.SVG(
+        hAttr, wAttr, vbAttr,
+        g.Raw(`{{ .Body }}`),
+        g.Group(children))
+}
+{{ end }}
