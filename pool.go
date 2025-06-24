@@ -1,6 +1,7 @@
 package golib
 
 import (
+	"bytes"
 	"sync"
 )
 
@@ -23,5 +24,15 @@ func (p *Pool[T]) Get() T {
 
 // Put is a generic wrapper around sync.Pool's Put method.
 func (p *Pool[T]) Put(t T) {
+	p.pool.Put(t)
+}
+
+// PutAndReset is a generic wrapper around sync.Pool's Put method.
+func (p *Pool[T]) PutAndReset(t T) {
+	if b, ok := any(t).(*bytes.Buffer); ok {
+		b.Reset()
+	} else if b, ok := any(t).(bytes.Buffer); ok {
+		b.Reset()
+	}
 	p.pool.Put(t)
 }

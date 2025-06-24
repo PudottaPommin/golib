@@ -16,6 +16,8 @@ type (
 	}
 )
 
+var _ Identity = (*identity)(nil)
+
 const identityContextKey key = "auth/identity"
 
 func NewIdentity(cv *CookieValue) (Identity, error) {

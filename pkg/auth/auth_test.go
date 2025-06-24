@@ -29,7 +29,7 @@ func TestGenerateSignedCookie(t *testing.T) {
 	}
 
 	_ = token
-	t.Log(token)
+	// t.Log(token)
 }
 
 func TestDecodeAuthToken(t *testing.T) {

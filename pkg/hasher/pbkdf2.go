@@ -12,7 +12,15 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-type pbkdf2HashAlgorithm int
+type (
+	pbkdf2HashAlgorithm uint8
+	pbkdf2Hasher        struct {
+		algorithm pbkdf2HashAlgorithm
+		saltSize  int
+		keyLen    int
+		iterCount int
+	}
+)
 
 const (
 	AlgorithmHMACSHA512 pbkdf2HashAlgorithm = iota
@@ -22,16 +30,18 @@ const (
 
 const pbkdf2Offset = 13
 
-type pbkdf2Hasher struct {
-	algorithm pbkdf2HashAlgorithm
-	saltSize  int
-	keyLen    int
-	iterCount int
-}
-
 func NewPbkdf2() Hasher {
 	return &pbkdf2Hasher{
 		algorithm: AlgorithmHMACSHA512,
+		saltSize:  128 / 8,
+		keyLen:    256 / 8,
+		iterCount: 210_000,
+	}
+}
+
+func NewPbkdf2FromAlgo(algorithm pbkdf2HashAlgorithm) Hasher {
+	return &pbkdf2Hasher{
+		algorithm: algorithm,
 		saltSize:  128 / 8,
 		keyLen:    256 / 8,
 		iterCount: 210_000,

@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"log"
 	"net/http"
 	"os"
@@ -16,25 +17,29 @@ import (
 	"github.com/pudottapommin/golib"
 )
 
-//go:embed svg.gotmpl
-var iconsTemplate string
+type (
+	parser           uint8
+	IconifyHugeicons struct {
+		Prefix string `json:"prefix"`
+		Info   struct {
+			Height int `json:"height"`
+		} `json:"info"`
+		LastModified uint `json:"lastModified"`
+		Icons        map[string]struct {
+			Body string `json:"body"`
+		}
+	}
+)
 
 const iconifyIconSetHugeicons = "https://raw.githubusercontent.com/iconify/icon-sets/refs/heads/master/json/hugeicons.json"
 
-var buffers = golib.NewPool(func() *bytes.Buffer {
-	return new(bytes.Buffer)
-})
-
-type IconifyHugeicons struct {
-	Prefix string `json:"prefix"`
-	Info   struct {
-		Height int `json:"height"`
-	} `json:"info"`
-	LastModified uint `json:"lastModified"`
-	Icons        map[string]struct {
-		Body string `json:"body"`
-	}
-}
+var (
+	//go:embed svg.gotmpl
+	iconsTemplate string
+	buffers       = golib.NewPool(func() *bytes.Buffer {
+		return new(bytes.Buffer)
+	})
+)
 
 func main() {
 	t := time.Now()
@@ -49,14 +54,21 @@ func main() {
 	if err := json.NewDecoder(resp.Body).Decode(&icons); err != nil {
 		log.Fatal(err)
 	}
+	_ = resp.Body.Close()
 	tmpl, err := template.New("").Funcs(template.FuncMap{"pascal": PascalCase}).Parse(iconsTemplate)
 	checkErr(err)
-	f, err := os.Create("../hugeicons/" + icons.Prefix + ".go")
-	checkErr(err)
-	defer f.Close()
-	if err := tmpl.Execute(f, icons); err != nil {
+
+	b := buffers.Get()
+	defer buffers.PutAndReset(b)
+	if err = tmpl.Execute(b, icons); err != nil {
 		log.Fatal(err)
 	}
+
+	formatted, err := format.Source(b.Bytes())
+	checkErr(err)
+	err = os.WriteFile("../hugeicons/"+icons.Prefix+".go", formatted, 0644)
+	checkErr(err)
+
 	fmt.Printf("Generated all icons in %dms", time.Since(t).Milliseconds())
 }
 
@@ -65,8 +77,6 @@ func checkErr(err error) {
 		log.Fatal(err)
 	}
 }
-
-type parser uint8
 
 const (
 	_             parser = iota //   _$$_This is some text, OK?!

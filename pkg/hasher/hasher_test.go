@@ -3,30 +3,28 @@ package hasher
 import (
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMainHasherHash(t *testing.T) {
+	t.Parallel()
 	h := New()
 	pairs := []string{"admin", "alhlin", "jakoc", "pepoz"}
 	for _, p := range pairs {
 		t.Run("Hash["+p+"]", func(t *testing.T) {
 			t.Parallel()
 			hash, err := h.Hash(p)
-			if err != nil {
-				t.Errorf("Argon2id:Hash failed to generate hash for %v with %v", p, err)
-			}
+			require.NoError(t, err)
 			result, err := h.Verify(hash, p)
-			if err != nil && result != PasswordVerificationSuccess {
-				t.Errorf("Argon2id:Hash verification generated for %v with %v", p, err)
-			}
-			if result != PasswordVerificationSuccess {
-				t.Errorf("Argon2id:Hash failed to verify result: %d != %d", PasswordVerificationSuccess, result)
-			}
+			require.NoError(t, err)
+			require.Equal(t, PasswordVerificationSuccess, result)
 		})
 	}
 }
 
 func TestHasherVerify(t *testing.T) {
+	t.Parallel()
 	h := New()
 	pairs := []struct {
 		password string
@@ -35,7 +33,7 @@ func TestHasherVerify(t *testing.T) {
 	}{
 		{
 			password: "admin",
-			hash:     "AQAAAAIAAYagAAAAEP1uTAFupvq4+hfCQHpbWJSxwC2DeKAFSu0xrGQ9KGoXU6g0cQPjQzSH9m2SB+RWxg==",
+			hash:     "AQAAAAIAAzRQAAAAEOJ1jR5Sia1VlgzeGoo2dHlqvDpDuO2kPo7U4Gsm8SOLZKiwwAHr58V3KnCQPaSu6w==",
 			result:   PasswordVerificationNeedsRehash,
 		},
 		{
@@ -54,44 +52,31 @@ func TestHasherVerify(t *testing.T) {
 		t.Run("Verify["+p.password+"]", func(t *testing.T) {
 			t.Parallel()
 			result, err := h.Verify(p.hash, p.password)
-
-			if err != nil && p.result != PasswordVerificationFailed {
-				t.Errorf("Argon2id:Verify failed for %v with %v", p, err)
-			}
-
-			if result != p.result {
-				t.Errorf("Argon2Id:verify failed to verify result: %d != %d", p.result, result)
-			}
-
+			require.NoError(t, err)
+			require.Equal(t, p.result, result)
 		})
 	}
 }
 
 // PBKDF2
 func TestPbkdf2HasherHash(t *testing.T) {
+	t.Parallel()
 	h := NewPbkdf2()
 	pairs := []string{"admin", "alhlin", "jakoc", "pepoz"}
 	for _, p := range pairs {
 		t.Run("Hash["+p+"]", func(t *testing.T) {
 			t.Parallel()
 			hash, err := h.Hash(p)
-			if err != nil {
-				t.Errorf("Pbkdf2:Hash failed to generate hash for %v with %v", p, err)
-			}
-
+			require.NoError(t, err)
 			result, err := h.Verify(hash, p)
-			if err != nil && result != PasswordVerificationSuccess {
-				t.Errorf("Pbkdf2:Hash verification generated for %v with %v", p, err)
-			}
-
-			if result != PasswordVerificationSuccess {
-				t.Errorf("Pbkdf2:Hash failed to verify result: %d != %d, err: %v", PasswordVerificationSuccess, result, err)
-			}
+			require.NoError(t, err)
+			require.Equal(t, PasswordVerificationSuccess, result)
 		})
 	}
 }
 
 func TestPbkdf2HasherVerify(t *testing.T) {
+	t.Parallel()
 	h := NewPbkdf2()
 	pairs := []struct {
 		password string
@@ -100,7 +85,7 @@ func TestPbkdf2HasherVerify(t *testing.T) {
 	}{
 		{
 			password: "admin",
-			hash:     "AQAAAAIAAYagAAAAEP1uTAFupvq4+hfCQHpbWJSxwC2DeKAFSu0xrGQ9KGoXU6g0cQPjQzSH9m2SB+RWxg==",
+			hash:     "AQAAAAAAAzRQAAAAEJHwficBEUSQSC7KW5sUr6WajEjMKu51D5UMR3ulLCmWJw8OQLgz4mKaW/Mc9yykCw==",
 			result:   PasswordVerificationSuccess,
 		},
 		{
@@ -129,46 +114,31 @@ func TestPbkdf2HasherVerify(t *testing.T) {
 		t.Run("Verify["+p.password+"]", func(t *testing.T) {
 			t.Parallel()
 			result, err := h.Verify(p.hash, p.password)
-			if err != nil && p.result != PasswordVerificationFailed {
-				t.Errorf("Argon2id:Verify failed for %v with %v", p, err)
-			}
-
-			if result != p.result {
-				t.Errorf("Argon2Id:verify failed to verify result: %d != %d", p.result, result)
-			}
-
+			require.NoError(t, err)
+			require.Equal(t, p.result, result)
 		})
 	}
 }
 
 // Argon2id
 func TestArgon2HasherHash(t *testing.T) {
+	t.Parallel()
 	h := NewArgon2id()
 	pairs := []string{"admin", "alhlin", "jakoc", "pepoz"}
 	for _, p := range pairs {
 		t.Run("Hash["+p+"]", func(t *testing.T) {
 			t.Parallel()
 			hash, err := h.Hash(p)
-			// t.Log(hash)
-			if err != nil {
-				t.Errorf("Argon2id:Hash failed to generate hash for %v with %v", p, err)
-			}
-
+			require.NoError(t, err)
 			result, err := h.Verify(hash, p)
-
-			if err != nil && result != PasswordVerificationSuccess {
-				t.Errorf("Argon2id:Hash verification generated for %v with %v", p, err)
-			}
-
-			if result != PasswordVerificationSuccess {
-				t.Errorf("Argon2id:Hash failed to verify result: %d != %d", PasswordVerificationSuccess, result)
-			}
-
+			require.NoError(t, err)
+			require.Equal(t, PasswordVerificationSuccess, result)
 		})
 	}
 }
 
 func TestArgon2idHasherVerify(t *testing.T) {
+	t.Parallel()
 	h := NewArgon2id()
 	pairs := []struct {
 		password string
@@ -206,15 +176,8 @@ func TestArgon2idHasherVerify(t *testing.T) {
 		t.Run("Verify["+strconv.Itoa(i+1)+"]", func(t *testing.T) {
 			t.Parallel()
 			result, err := h.Verify(p.hash, p.password)
-
-			if err != nil && p.result != PasswordVerificationFailed {
-				t.Errorf("Argon2id:Verify failed for %v with %v", p, err)
-			}
-
-			if result != p.result {
-				t.Errorf("Argon2Id:verify failed to verify result: %d != %d", p.result, result)
-			}
-
+			require.NoError(t, err)
+			require.Equal(t, p.result, result)
 		})
 	}
 }
