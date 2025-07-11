@@ -2,6 +2,7 @@ package golib
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 )
 
@@ -29,10 +30,16 @@ func (p *Pool[T]) Put(t T) {
 
 // PutAndReset is a generic wrapper around sync.Pool's Put method.
 func (p *Pool[T]) PutAndReset(t T) {
-	if b, ok := any(t).(*bytes.Buffer); ok {
-		b.Reset()
-	} else if b, ok := any(t).(bytes.Buffer); ok {
-		b.Reset()
+
+	switch v := any(t).(type) {
+	case *bytes.Buffer:
+		v.Reset()
+	case bytes.Buffer:
+		v.Reset()
+	case *strings.Builder:
+		v.Reset()
+	case strings.Builder:
+		v.Reset()
 	}
 	p.pool.Put(t)
 }

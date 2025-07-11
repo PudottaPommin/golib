@@ -1,15 +1,16 @@
 module github.com/pudottapommin/golib
 
-go 1.24.4
+go 1.24.5
 
 require (
-	github.com/a-h/templ v0.3.898
+	github.com/a-h/templ v0.3.906
 	github.com/gin-gonic/gin v1.10.1
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/iancoleman/strcase v0.3.0
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.39.0
-	maragu.dev/gomponents v1.1.0
+	maragu.dev/gomponents v1.1.1-0.20250626090230-a30401d18438
 )
 
 require (
@@ -23,7 +24,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.20.0 // indirect
-	github.com/goccy/go-json v0.10.4 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
