@@ -1,32 +1,34 @@
 package requestid
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-func New(opts ...OptsFn) gin.HandlerFunc {
+func New(opts ...OptsFn) func(http.Handler) http.Handler {
 	cfg := defaultConfig
 	for i := range opts {
 		opts[i](&cfg)
 	}
 	headerXRequestID = cfg.Header
-	return func(c *gin.Context) {
-		if cfg.Next != nil && cfg.Next(c) {
-			c.Next()
-			return
-		}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if cfg.Next != nil && cfg.Next(w, r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 
-		rid := c.GetHeader(cfg.Header)
-		if rid == "" {
-			rid = cfg.Generator()
-			c.Request.Header.Set(cfg.Header, rid)
-		}
-		// Set the id to ensure that the requestid is in the response
-		c.Header(cfg.Header, rid)
-		c.Next()
+			rid := r.Header.Get(cfg.Header)
+			if rid == "" {
+				rid = cfg.Generator()
+				r.Header.Set(cfg.Header, rid)
+			}
+			// Set the id to ensure that the requestid is in the response
+			w.Header().Set(cfg.Header, rid)
+			next.ServeHTTP(w, r)
+		})
 	}
 }
 
-func Get(c *gin.Context) string {
-	return c.GetHeader(headerXRequestID)
+func Get(r *http.Request) string {
+	return r.Header.Get(headerXRequestID)
 }

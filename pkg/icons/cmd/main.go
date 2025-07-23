@@ -1,23 +1,24 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"go/format"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"path"
 	"slices"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
 	"github.com/iancoleman/strcase"
-	"github.com/pudottapommin/golib"
+	"github.com/valyala/bytebufferpool"
+	"golang.org/x/sync/errgroup"
 )
 
 type (
@@ -27,17 +28,15 @@ type (
 )
 
 var (
-	buffers = golib.NewPool(func() *bytes.Buffer {
-		return new(bytes.Buffer)
-	})
 	//go:embed svg.gotmpl
 	iconsTemplate string
 	tmpl          = template.Must(template.New("").Parse(iconsTemplate))
 
 	iconSets = map[string]string{
-		"hugeicons":    "https://raw.githubusercontent.com/iconify/icon-sets/refs/heads/master/json/hugeicons.json",
-		"flagicons":    "https://raw.githubusercontent.com/iconify/icon-sets/refs/heads/master/json/flag.json",
-		"circle-flags": "https://raw.githubusercontent.com/iconify/icon-sets/refs/heads/master/json/circle-flags.json",
+		"phosphor":     "ph.json",
+		"hugeicons":    "hugeicons.json",
+		"flagicons":    "flag.json",
+		"circle-flags": "circle-flags.json",
 	}
 
 	goKeywords = []string{
@@ -49,26 +48,24 @@ var (
 )
 
 func main() {
-	var wg sync.WaitGroup
+	g, ctx := errgroup.WithContext(context.Background())
 
 	t := time.Now()
 	for name, url := range iconSets {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := fetchIconset(name, url); err != nil {
-				log.Fatal(err)
-			}
-		}()
+		g.Go(func() error {
+			return fetchIconset(ctx, name, url)
+		})
 	}
 
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Printf("Generated all icons in %dms", time.Since(t).Milliseconds())
 }
 
-func fetchIconset(name, url string) error {
-	req, err := http.NewRequest("GET", url, nil)
+func fetchIconset(ctx context.Context, name, url string) error {
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://raw.githubusercontent.com/iconify/icon-sets/refs/heads/master/json/%s", url), nil)
 	if err != nil {
 		return fmt.Errorf("[%s]: %w", name, err)
 	}
@@ -122,14 +119,29 @@ func fetchIconset(name, url string) error {
 			iconPkg.Variants[""][k] = strcase.ToCamel(k)
 		}
 	} else {
-		for k := range collection.Suffixes {
+		suffixes := slices.SortedFunc(maps.Keys(collection.Suffixes), func(l string, r string) int {
+			if l == "" {
+				return 1
+			}
+			if r == "" {
+				return -1
+			}
+			return strings.Compare(l, r)
+		})
+		for _, k := range suffixes {
 			iconPkg.Variants[k] = make(map[string]string)
 		}
 
 		for k, v := range collection.Icons {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			var suffix string
 
-			for ks := range collection.Suffixes {
+			for _, ks := range suffixes {
 				if strings.HasSuffix(k, ks) {
 					suffix = ks
 					break
@@ -148,19 +160,19 @@ func fetchIconset(name, url string) error {
 				Name:    newNameVariants(k),
 				Variant: suffix,
 				Body:    v.Body,
-				Width:   v.Width,
-				Height:  v.Height,
+				Width:   w,
+				Height:  h,
 			})
 
-			if suffix == "" {
-				log.Printf("No suffix for %s", k)
-				continue
-			}
+			// if suffix == "" {
+			// 	log.Printf("No suffix for %s", k)
+			// 	continue
+			// }
 
 			withoutSuffix := strings.TrimSuffix(strings.TrimSuffix(k, suffix), "-")
 			iconPkg.Variants[suffix][withoutSuffix] = strcase.ToCamel(k)
 			if vb, ok := iconPkg.ViewBox[suffix]; !ok {
-				w, h := v.Width, v.Height
+				w, h = v.Width, v.Height
 				if w == 0 {
 					w = collection.Width
 				}
@@ -179,8 +191,8 @@ func fetchIconset(name, url string) error {
 		return strings.Compare(a.Name.Original, b.Name.Original)
 	})
 
-	b := buffers.Get()
-	defer buffers.PutAndReset(b)
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
 	tm := TemplateModel{&iconPkg}
 	if err = tmpl.Execute(b, tm); err != nil {
 		return fmt.Errorf("[%s]: %w", name, err)
@@ -195,7 +207,7 @@ func fetchIconset(name, url string) error {
 	if err = os.MkdirAll(dirPath, 0755); err != nil {
 		return fmt.Errorf("[%s]: %w", name, err)
 	}
-	if err = os.WriteFile(path.Join(dirPath, iconPkg.Name.Lower+".go"), formatted, 0644); err != nil {
+	if err = os.WriteFile(path.Join(dirPath, iconPkg.Name.Lower+".gen.go"), formatted, 0644); err != nil {
 		return fmt.Errorf("[%s]: %w", name, err)
 	}
 	return nil
