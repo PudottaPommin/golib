@@ -1,8 +1,9 @@
 package requestid
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/pudottapommin/golib/http"
+	"net/http"
+
+	ghttp "github.com/pudottapommin/golib/http"
 	"github.com/pudottapommin/golib/pkg/id"
 )
 
@@ -12,7 +13,7 @@ type (
 		// Next defines function to skip middleware when returned true
 		//
 		// Optional, Default: nil
-		Next func(c *gin.Context) bool
+		Next func(http.ResponseWriter, *http.Request) bool
 		// Generator defines function which returns new request id
 		//
 		// Optional, Default: github.com/pudottapommin/golib/pkg/id
@@ -29,9 +30,9 @@ var (
 		Generator: func() string {
 			return id.New().String()
 		},
-		Header: http.HeaderXRequestID,
+		Header: ghttp.HeaderXRequestID,
 	}
-	headerXRequestID = http.HeaderXRequestID
+	headerXRequestID = ghttp.HeaderXRequestID
 )
 
 func WithGenerator(fn func() string) OptsFn {
@@ -46,7 +47,7 @@ func WithHeader(header string) OptsFn {
 	}
 }
 
-func WithNext(fn func(c *gin.Context) bool) OptsFn {
+func WithNext(fn func(w http.ResponseWriter, r *http.Request) bool) OptsFn {
 	return func(c *Config) {
 		c.Next = fn
 	}

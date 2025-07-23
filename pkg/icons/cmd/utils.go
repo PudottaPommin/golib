@@ -3,6 +3,8 @@ package main
 import (
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/valyala/bytebufferpool"
 )
 
 type parser uint
@@ -16,11 +18,8 @@ const (
 )
 
 func PascalCase(input string) string {
-	b := buffers.Get()
-	defer func() {
-		b.Reset()
-		buffers.Put(b)
-	}()
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
 	str := markLetterCaseChanges(input)
 	state := idle
 	for i := 0; i < len(str); {
@@ -29,9 +28,9 @@ func PascalCase(input string) string {
 		state = state.next(r)
 		switch state {
 		case firstAlphaNum:
-			b.WriteRune(unicode.ToUpper(r))
+			b.WriteByte(byte(unicode.ToUpper(r)))
 		case alphaNum:
-			b.WriteRune(unicode.ToLower(r))
+			b.WriteByte(byte(unicode.ToLower(r)))
 		default:
 		}
 	}
@@ -68,11 +67,8 @@ func (s parser) next(r rune) parser {
 
 // Mark letter case changes, i.e., "camelCaseTEXT" -> "camel_Case_TEXT".
 func markLetterCaseChanges(input string) string {
-	b := buffers.Get()
-	defer func() {
-		b.Reset()
-		buffers.Put(b)
-	}()
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
 
 	wasLetter := false
 	countConsecutiveUpperLetters := 0
@@ -83,10 +79,10 @@ func markLetterCaseChanges(input string) string {
 
 		if unicode.IsLetter(r) {
 			if wasLetter && countConsecutiveUpperLetters > 1 && !unicode.IsUpper(r) {
-				b.WriteRune('_')
+				b.WriteByte('_')
 			}
 			if wasLetter && countConsecutiveUpperLetters == 0 && unicode.IsUpper(r) {
-				b.WriteRune('_')
+				b.WriteByte('_')
 			}
 		}
 
@@ -96,7 +92,7 @@ func markLetterCaseChanges(input string) string {
 		} else {
 			countConsecutiveUpperLetters = 0
 		}
-		b.WriteRune(r)
+		b.WriteByte(byte(r))
 	}
 	return b.String()
 }

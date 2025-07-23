@@ -85,7 +85,7 @@ func New(opts ...OptsFn) gin.HandlerFunc {
 
 		c.Writer.Header().Set(headerETag, string(etag))
 		if _, err := w.ResponseWriter.Write(w.body.Bytes()); err != nil {
-			c.AbortWithError(http.StatusInternalServerError, err)
+			_ = c.AbortWithError(http.StatusInternalServerError, err)
 		}
 	}
 }

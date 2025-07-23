@@ -4,39 +4,40 @@
 package {{.IconPackage.Name.Lower}}
 
 import (
-	g "maragu.dev/gomponents"
-	h "maragu.dev/gomponents/html"
+    g "maragu.dev/gomponents"
+    h "maragu.dev/gomponents/html"
 )
 
 var (
-	hAttr   = g.Attr("height", "{{ .IconPackage.Height }}")
-	wAttr   = g.Attr("width", "{{ .IconPackage.Width }}")
-	{{range $k, $v := .IconPackage.ViewBox -}}
-		vb{{$k}}Attr = g.Attr("viewbox", "0 0 {{index $v 0}} {{index $v 1}}")
-	{{end}}
+    hAttr   = g.Attr("height", "{{ .IconPackage.Height }}")
+    wAttr   = g.Attr("width", "{{ .IconPackage.Width }}")
+    {{range $k, $v := .IconPackage.ViewBox -}}
+        vb{{$k}}Attr = g.Attr("viewbox", "0 0 {{index $v 0}} {{index $v 1}}")
+    {{end -}}
 )
 {{range .Icons -}}
-{{- /*gotype:github.com/pudottapommin/golib/pkg/icons/cmd.Icon*/ -}}
-// {{ .Name.Pascal }}
-// See https://icon-sets.iconify.design/hugeicons/?icon-filter={{ .Name.Original }}
-func {{.Name.Pascal}}(children ...g.Node) g.Node {
-	return h.SVG(
-		{{if eq .Width 0}}wAttr, hAttr{{else}}g.Attr("width", "{{.Width}}"), g.Attr("height", "{{.Height}}"){{end}}, vb{{.Variant}}Attr,
-        g.Raw(`{{.Body}}`), g.Group(children),
-	)
-}
+    {{- /*gotype:github.com/pudottapommin/golib/pkg/icons/cmd.Icon*/ -}}
+    // {{ .Name.Pascal }}
+    // See https://icon-sets.iconify.design/{{$.IconPackage.Name.Lower}}/?icon-filter={{ .Name.Original }}
+    func {{.Name.Pascal}}(children ...g.Node) g.Node {
+        return h.SVG({{if eq .Width 0}}wAttr, hAttr{{else}}g.Attr("width", "{{.Width}}"), g.Attr("height", "{{.Height}}"){{end}}, vb{{.Variant}}Attr,
+            g.Raw(`{{.Body}}`),
+            g.Group(children),
+        )
+    }
 {{end}}
 
 {{if ne .IconPackage.Variants nil}}
-	{{range $k, $v := .IconPackage.Variants -}}
-		func From{{$k}}(s string, children ...g.Node) g.Node {
-			switch s {
-			{{range $key, $name := $v -}}
-				case "{{$key}}":
-					return {{$name}}(children...)
-			{{end}}
-			}
-			return nil
-		}
-	{{end}}
+    {{range $k, $v := .IconPackage.Variants -}}
+        func From{{$k}}(s string, children ...g.Node) g.Node {
+            switch s {
+            {{range $key, $name := $v -}}
+                case "{{$key}}":
+                return {{$name}}(children...)
+            {{end -}}
+                default:
+                return nil
+            }
+        }
+    {{end}}
 {{end}}
