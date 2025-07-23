@@ -14,19 +14,21 @@ func New[T gAuth.Identity](opts ...OptsFn[T]) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cIden, ok := c.Get(cfg.ContextKey)
 		if !ok {
-			cfg.UnauthorizedHandler(c, nil)
+			cfg.UnauthorizedHandler(c, *new(T))
 			return
 		}
-		iden, ok := cIden.(*T)
+		iden, ok := cIden.(T)
 		if !ok {
-			cfg.UnauthorizedHandler(c, nil)
+			cfg.UnauthorizedHandler(c, iden)
 			return
 		}
 		if !cfg.AuthorizeHandler(c, iden) {
-			cfg.UnauthorizedHandler(c, nil)
+			cfg.UnauthorizedHandler(c, iden)
 			return
 		}
-		cfg.AuthorizedHandler(c, iden)
+		if cfg.AuthorizedHandler != nil {
+			cfg.AuthorizedHandler(c, iden)
+		}
 		c.Next()
 	}
 }

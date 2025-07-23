@@ -25,7 +25,7 @@ func New[T gAuth.Identity](opts ...OptsFn[T]) gin.HandlerFunc {
 		} else if err != nil {
 			c.Error(err)
 		}
-		var identity *T
+		var identity T
 		if identity, err = cfg.Factory(c, cv); err == nil {
 			c.Set(cfg.ContextKey, identity)
 		}
