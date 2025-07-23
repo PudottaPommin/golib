@@ -13,9 +13,9 @@ type (
 		// Optional, Default: nil
 		NotAuthenticatedHandler func(*gin.Context)
 		AuthConfig              *gAuth.Config
-		Factory                 func(*gin.Context, *gAuth.CookieValue) (*T, error)
+		Factory                 func(*gin.Context, *gAuth.CookieValue) (T, error)
 		// Optional, Default: nil
-		AfterHandler func(*gin.Context, *T)
+		AfterHandler func(*gin.Context, T)
 	}
 )
 
@@ -49,13 +49,13 @@ func WithNotAuthenticatedHandler[T gAuth.Identity](handler func(*gin.Context)) O
 	}
 }
 
-func WithFactory[T gAuth.Identity](factory func(*gin.Context, *gAuth.CookieValue) (*T, error)) OptsFn[T] {
+func WithFactory[T gAuth.Identity](factory func(*gin.Context, *gAuth.CookieValue) (T, error)) OptsFn[T] {
 	return func(c *Config[T]) {
 		c.Factory = factory
 	}
 }
 
-func WithAfterHandler[T gAuth.Identity](handler func(*gin.Context, *T)) OptsFn[T] {
+func WithAfterHandler[T gAuth.Identity](handler func(*gin.Context, T)) OptsFn[T] {
 	return func(c *Config[T]) {
 		c.AfterHandler = handler
 	}
