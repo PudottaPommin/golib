@@ -1,8 +1,9 @@
 package etag
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/pudottapommin/golib/http"
+	"net/http"
+
+	ghttp "github.com/pudottapommin/golib/http"
 )
 
 type (
@@ -11,7 +12,7 @@ type (
 		// Next defines function to skip middleware when returned true
 		//
 		// Optional, Default: nil
-		Next func(c *gin.Context) bool
+		Next func(http.ResponseWriter, *http.Request) bool
 		// Weak enables the use of weak ETags by prefixing them with 'W/'.
 		// When true, the ETag is considered weak for comparison, allowing content to be
 		// semantically equivalent but not byte-for-byte identical.
@@ -24,8 +25,8 @@ var (
 		Next: nil,
 		Weak: false,
 	}
-	headerETag        = http.HeaderETag
-	headerIfNoneMatch = http.HeaderIfNoneMatch
+	headerETag        = ghttp.HeaderETag
+	headerIfNoneMatch = ghttp.HeaderIfNoneMatch
 	weakPrefix        = []byte("W/")
 )
 
@@ -35,7 +36,7 @@ func WithWeak() OptsFn {
 	}
 }
 
-func WithNext(fn func(c *gin.Context) bool) OptsFn {
+func WithNext(fn func(http.ResponseWriter, *http.Request) bool) OptsFn {
 	return func(c *Config) {
 		c.Next = fn
 	}

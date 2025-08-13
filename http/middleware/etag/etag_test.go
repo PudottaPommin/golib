@@ -7,17 +7,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
 	ghttp "github.com/pudottapommin/golib/http"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_ETag_Next(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New(WithNext(func(c *gin.Context) bool {
+	r := http.NewServeMux()
+	r.Handle("/a", New(WithNext(func(_ http.ResponseWriter, _ *http.Request) bool {
 		return true
+	}))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
 	})))
 
 	w := httptest.NewRecorder()
@@ -30,12 +30,10 @@ func Test_ETag_Next(t *testing.T) {
 
 func Test_ETag_NotStatusOk(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.GET("/", func(c *gin.Context) {
-		c.Status(http.StatusCreated)
-	})
+	r := http.NewServeMux()
+	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
@@ -47,10 +45,9 @@ func Test_ETag_NotStatusOk(t *testing.T) {
 
 func Test_ETag_NoBody(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.GET("/", func(_ *gin.Context) {})
+	r := http.NewServeMux()
+	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
@@ -76,14 +73,13 @@ func Test_ETag_NewEtag(t *testing.T) {
 	})
 }
 
-func testETagNewEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolint:revive // We're in a test, so using bools as a flow-control is fine
+func testETagNewEtag(t *testing.T, headerIfNoneMatch, matched bool) {
 	t.Helper()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "Hello, World!")
-	})
+	r := http.NewServeMux()
+	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("Hello, World!"))
+		w.WriteHeader(http.StatusOK)
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
@@ -103,12 +99,10 @@ func testETagNewEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolint:r
 		return
 	}
 
-	if matched {
-		require.Equal(t, http.StatusNotModified, w.Code)
-		b, err := io.ReadAll(w.Body)
-		require.NoError(t, err)
-		require.Empty(t, b)
-	}
+	require.Equal(t, http.StatusNotModified, w.Code)
+	b, err := io.ReadAll(w.Body)
+	require.NoError(t, err)
+	require.Empty(t, b)
 }
 
 func Test_ETag_WeakEtag(t *testing.T) {
@@ -127,14 +121,13 @@ func Test_ETag_WeakEtag(t *testing.T) {
 	})
 }
 
-func testETagWeakEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolint:revive // We're in a test, so using bools as a flow-control is fine
+func testETagWeakEtag(t *testing.T, headerIfNoneMatch, matched bool) {
 	t.Helper()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New(WithWeak()))
-	r.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "Hello, World!")
-	})
+	r := http.NewServeMux()
+	r.Handle("/", New(WithWeak())(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("Hello, World!"))
+		w.WriteHeader(http.StatusOK)
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
@@ -154,12 +147,10 @@ func testETagWeakEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolint:
 		return
 	}
 
-	if matched {
-		require.Equal(t, http.StatusNotModified, w.Code)
-		b, err := io.ReadAll(w.Body)
-		require.NoError(t, err)
-		require.Empty(t, b)
-	}
+	require.Equal(t, http.StatusNotModified, w.Code)
+	b, err := io.ReadAll(w.Body)
+	require.NoError(t, err)
+	require.Empty(t, b)
 }
 
 func Test_ETag_CustomEtag(t *testing.T) {
@@ -178,19 +169,18 @@ func Test_ETag_CustomEtag(t *testing.T) {
 	})
 }
 
-func testETagCustomEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolint:revive // We're in a test, so using bools as a flow-control is fine
+func testETagCustomEtag(t *testing.T, headerIfNoneMatch, matched bool) {
 	t.Helper()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.GET("/", func(c *gin.Context) {
-		c.Writer.Header().Set(headerETag, `"custom"`)
-		if bytes.Equal([]byte(c.Request.Header.Get(ghttp.HeaderIfNoneMatch)), []byte(`"custom"`)) {
-			c.Status(http.StatusNotModified)
+	r := http.NewServeMux()
+	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(headerETag, `"custom"`)
+		if bytes.Equal([]byte(r.Header.Get(ghttp.HeaderIfNoneMatch)), []byte(`"custom"`)) {
+			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		c.String(http.StatusOK, "Hello, World!")
-	})
+		_, _ = w.Write([]byte("Hello, World!"))
+		w.WriteHeader(http.StatusOK)
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
@@ -210,27 +200,24 @@ func testETagCustomEtag(t *testing.T, headerIfNoneMatch, matched bool) { //nolin
 		return
 	}
 
-	if matched {
-		require.Equal(t, http.StatusNotModified, w.Code)
-		b, err := io.ReadAll(w.Body)
-		require.NoError(t, err)
-		require.Empty(t, b)
-	}
+	require.Equal(t, http.StatusNotModified, w.Code)
+	b, err := io.ReadAll(w.Body)
+	require.NoError(t, err)
+	require.Empty(t, b)
 }
 
 func Test_ETag_CustomEtagPut(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.PUT("/", func(c *gin.Context) {
-		c.Writer.Header().Set(headerETag, `"custom"`)
-		if !bytes.Equal([]byte(c.Request.Header.Get(ghttp.HeaderIfMatch)), []byte(`"custom"`)) {
-			c.Status(http.StatusPreconditionFailed)
+	r := http.NewServeMux()
+	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set(headerETag, `"custom"`)
+		if !bytes.Equal([]byte(r.Header.Get(ghttp.HeaderIfMatch)), []byte(`"custom"`)) {
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return
 		}
-		c.String(http.StatusOK, "Hello, World!")
-	})
+		_, _ = w.Write([]byte("Hello, World!"))
+		w.WriteHeader(http.StatusOK)
+	})))
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, "/", nil)
@@ -241,27 +228,26 @@ func Test_ETag_CustomEtagPut(t *testing.T) {
 	require.Equal(t, http.StatusPreconditionFailed, w.Code)
 }
 
-func Benchmark_Etag(b *testing.B) {
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(New())
-	r.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "Hello, World!")
-	})
-
-	h := r.Handler()
-
-	w := httptest.NewRecorder()
-	gctx := gin.CreateTestContextOnly(w, r)
-	gctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for n := 0; n < b.N; n++ {
-		h.ServeHTTP(w, gctx.Request)
-	}
-
-	require.Equal(b, http.StatusOK, gctx.Writer.Status())
-	require.Equal(b, `"13-1831710635"`, gctx.Writer.Header().Get(headerETag))
-}
+// func Benchmark_Etag(b *testing.B) {
+// 	r := http.NewServeMux()
+// 	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		_, _ = w.Write([]byte("Hello, World!"))
+// 		w.WriteHeader(http.StatusOK)
+// 	})))
+//
+// 	h := r.Handler()
+//
+// 	w := httptest.NewRecorder()
+// 	gctx := gin.CreateTestContextOnly(w, r)
+// 	gctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+//
+// 	b.ReportAllocs()
+// 	b.ResetTimer()
+//
+// 	for n := 0; n < b.N; n++ {
+// 		h.ServeHTTP(w, gctx.Request)
+// 	}
+//
+// 	require.Equal(b, http.StatusOK, gctx.Writer.Status())
+// 	require.Equal(b, `"13-1831710635"`, gctx.Writer.Header().Get(headerETag))
+// }

@@ -6,15 +6,16 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/pudottapommin/golib"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/valyala/bytebufferpool"
 )
 
-var buffers = golib.NewPool(func() *bytes.Buffer {
-	return new(bytes.Buffer)
-})
+const (
+	byteQuote = '"'
+	byteDash  = '-'
+)
 
-func New(opts ...OptsFn) gin.HandlerFunc {
+func New(opts ...OptsFn) func(http.Handler) http.Handler {
 	cfg := defaultConfig
 	for i := range opts {
 		opts[i](&cfg)
@@ -23,77 +24,97 @@ func New(opts ...OptsFn) gin.HandlerFunc {
 	const crcPol = 0xD5828281
 	crc32q := crc32.MakeTable(crcPol)
 
-	return func(c *gin.Context) {
-		if cfg.Next != nil && cfg.Next(c) {
-			c.Next()
-			return
-		}
-
-		w := &responseWriter{
-			ResponseWriter: c.Writer,
-			body:           buffers.Get(),
-		}
-		defer buffers.PutAndReset(w.body)
-		c.Writer = w
-		c.Next()
-
-		if c.Err() != nil {
-			return
-		}
-		if c.Writer.Status() != http.StatusOK {
-			return
-		}
-		if c.Writer.Header().Get(headerETag) != "" {
-			return
-		}
-
-		etagBuffer := buffers.Get()
-		defer buffers.PutAndReset(etagBuffer)
-		if cfg.Weak {
-			etagBuffer.Write(weakPrefix)
-		}
-		etagBuffer.WriteByte('"')
-
-		bodyLength := len(w.body.Bytes())
-		if bodyLength > math.MaxUint32 {
-			c.Status(http.StatusRequestEntityTooLarge)
-			return
-		}
-
-		appendUint(etagBuffer, uint32(bodyLength))
-		etagBuffer.WriteByte('-')
-		appendUint(etagBuffer, crc32.Checksum(w.body.Bytes(), crc32q))
-		etagBuffer.WriteByte('"')
-
-		etag := etagBuffer.Bytes()
-		clientEtag := []byte(c.Request.Header.Get(headerIfNoneMatch))
-
-		if bytes.HasPrefix(clientEtag, weakPrefix) {
-			if bytes.Equal(clientEtag[2:], etag) || bytes.Equal(clientEtag[2:], etag[2:]) {
-				// todo: ??maybe reset body??
-				c.Status(http.StatusNotModified)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if cfg.Next != nil && cfg.Next(w, r) {
+				next.ServeHTTP(w, r)
 				return
 			}
-			c.Writer.Header().Set(headerETag, string(etag))
-			return
-		}
-		if bytes.Equal(clientEtag, etag) {
-			// todo: ??maybe reset body??
-			c.Status(http.StatusNotModified)
-			return
-		}
 
-		c.Writer.Header().Set(headerETag, string(etag))
-		if _, err := w.ResponseWriter.Write(w.body.Bytes()); err != nil {
-			_ = c.AbortWithError(http.StatusInternalServerError, err)
-		}
+			rw := &responseWriter{
+				WrapResponseWriter: middleware.NewWrapResponseWriter(w, r.ProtoMajor),
+				body:               bytebufferpool.Get(),
+			}
+			defer rw.TriggerSetStatus()
+			defer bytebufferpool.Put(rw.body)
+			next.ServeHTTP(rw, r)
+
+			if rw.statusCode != nil && *rw.statusCode != http.StatusOK {
+				return
+			}
+			if rw.Header().Get(headerETag) != "" {
+				return
+			}
+
+			if rw.len == 0 {
+				rw.len = len(rw.body.Bytes())
+			}
+			if rw.len > math.MaxUint32 {
+				rw.WriteHeader(http.StatusRequestEntityTooLarge)
+				return
+			}
+			etagBuffer := bytebufferpool.Get()
+			defer bytebufferpool.Put(etagBuffer)
+
+			if cfg.Weak {
+				_, _ = etagBuffer.Write(weakPrefix)
+			}
+			_ = etagBuffer.WriteByte(byteQuote)
+
+			bodyLength := len(rw.body.Bytes())
+			if bodyLength > math.MaxUint32 {
+				rw.WriteHeader(http.StatusRequestEntityTooLarge)
+				return
+			}
+
+			appendUint(etagBuffer, uint32(bodyLength))
+			_ = etagBuffer.WriteByte(byteDash)
+			appendUint(etagBuffer, crc32.Checksum(rw.body.Bytes(), crc32q))
+			_ = etagBuffer.WriteByte(byteQuote)
+
+			etag := etagBuffer.Bytes()
+			clientEtag := []byte(r.Header.Get(headerIfNoneMatch))
+
+			if bytes.HasPrefix(clientEtag, weakPrefix) {
+				if bytes.Equal(clientEtag[2:], etag) || bytes.Equal(clientEtag[2:], etag[2:]) {
+					// todo: ??maybe reset body??
+					rw.WriteHeader(http.StatusNotModified)
+					return
+				}
+				rw.Header().Set(headerETag, string(etag))
+				return
+			}
+			if bytes.Equal(clientEtag, etag) {
+				// todo: ??maybe reset body??
+				rw.WriteHeader(http.StatusNotModified)
+				return
+			}
+
+			rw.Header().Set(headerETag, string(etag))
+			if _, err := rw.WrapResponseWriter.Write(rw.body.Bytes()); err != nil {
+				http.Error(rw, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		})
 	}
 }
 
 type responseWriter struct {
-	gin.ResponseWriter
-	body *bytes.Buffer
-	len  int
+	middleware.WrapResponseWriter
+	body       *bytebufferpool.ByteBuffer
+	statusCode *int
+	len        int
+}
+
+func (w *responseWriter) TriggerSetStatus() {
+	if w.statusCode == nil {
+		return
+	}
+	w.WrapResponseWriter.WriteHeader(*w.statusCode)
+}
+
+func (w *responseWriter) WriteHeader(code int) {
+	w.statusCode = &code
 }
 
 func (w *responseWriter) Write(b []byte) (int, error) {
@@ -101,7 +122,7 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 	return l, err
 }
 
-func appendUint(buffer *bytes.Buffer, n uint32) {
+func appendUint(buffer *bytebufferpool.ByteBuffer, n uint32) {
 	var b [20]byte
 	buf := b[:]
 	i := len(buf)
@@ -115,5 +136,5 @@ func appendUint(buffer *bytes.Buffer, n uint32) {
 	i--
 	buf[i] = '0' + byte(n)
 
-	buffer.Write(buf[i:])
+	_, _ = buffer.Write(buf[i:])
 }
