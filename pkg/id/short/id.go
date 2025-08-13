@@ -2,7 +2,7 @@ package id
 
 import (
 	"crypto/rand"
-	"encoding/hex"
+	"encoding/json"
 	"fmt"
 )
 
@@ -48,17 +48,17 @@ func (g *ID) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// MarshalText hex encodes the id.
-func (g ID) MarshalText() ([]byte, error) {
-	return []byte(hex.EncodeToString(g.Bytes())), nil
+// MarshalJSON hex encodes the id.
+func (g ID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(g.String())
 }
 
-// UnmarshalText decodes a hex-encoded string into an id.
-func (g *ID) UnmarshalText(data []byte) error {
-	str, err := hex.DecodeString(string(data))
-	if err != nil {
+// UnmarshalJSON decodes a hex-encoded string into an id.
+func (g *ID) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	copy(g[:], str)
+	copy(g[:], s)
 	return nil
 }

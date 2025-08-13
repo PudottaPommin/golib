@@ -2,33 +2,26 @@ package healthcheck
 
 import (
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
-type HealthCheck func(*gin.Context) bool
+type HealthCheck func(http.ResponseWriter, *http.Request) bool
 
-func New(opts ...OptsFn) gin.HandlerFunc {
-	cfg := defaultConfig
-	for i := range opts {
-		opts[i](&cfg)
-	}
-
-	return func(c *gin.Context) {
-		if cfg.Next != nil && cfg.Next(c) {
-			c.Next()
+func (m *mw) Handle(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m.Next != nil && m.Next(w, r) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if c.Request.Method != http.MethodGet {
-			c.Next()
+		if r.Method != http.MethodGet {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if cfg.Probe(c) {
-			c.Status(http.StatusOK)
+		if m.Probe(w, r) {
+			w.WriteHeader(http.StatusOK)
 			return
 		}
-		c.Status(http.StatusServiceUnavailable)
-	}
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
 }

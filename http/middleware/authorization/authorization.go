@@ -1,34 +1,28 @@
 package authorization
 
 import (
-	"github.com/gin-gonic/gin"
-
-	gAuth "github.com/pudottapommin/golib/pkg/auth"
+	"net/http"
 )
 
-func New[T gAuth.Identity](opts ...OptsFn[T]) gin.HandlerFunc {
-	cfg := newDefaultConfig[T]()
-	for i := range opts {
-		opts[i](&cfg)
-	}
-	return func(c *gin.Context) {
-		cIden, ok := c.Get(cfg.ContextKey)
+func (m *mw[T]) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		iden, ok := r.Context().Value(m.ContextKey).(T)
 		if !ok {
-			cfg.UnauthorizedHandler(c, *new(T))
+			m.UnauthorizedHandler(w, r, *new(T))
 			return
 		}
-		iden, ok := cIden.(T)
-		if !ok {
-			cfg.UnauthorizedHandler(c, iden)
+
+		if iden == nil {
+			m.UnauthorizedHandler(w, r, iden)
 			return
 		}
-		if !cfg.AuthorizeHandler(c, iden) {
-			cfg.UnauthorizedHandler(c, iden)
+		if !m.AuthorizeHandler(w, r, iden) {
+			m.UnauthorizedHandler(w, r, iden)
 			return
 		}
-		if cfg.AuthorizedHandler != nil {
-			cfg.AuthorizedHandler(c, iden)
+		if m.AuthorizedHandler != nil {
+			m.AuthorizedHandler(w, r, iden)
 		}
-		c.Next()
-	}
+		next.ServeHTTP(w, r)
+	})
 }

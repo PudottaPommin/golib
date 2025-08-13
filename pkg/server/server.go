@@ -7,13 +7,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type (
-	Server struct {
-		ctx context.Context
-		e   *chi.Mux
-		srv *http.Server
-	}
-)
+type Server struct {
+	ctx context.Context
+	e   *chi.Mux
+	srv *http.Server
+}
 
 func New(ctx context.Context, e *chi.Mux) *Server {
 	return &Server{ctx: ctx, e: e}

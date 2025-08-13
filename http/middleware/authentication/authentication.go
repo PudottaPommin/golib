@@ -1,39 +1,34 @@
 package authentication
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	gAuth "github.com/pudottapommin/golib/pkg/auth"
 )
 
-func New[T gAuth.Identity](opts ...OptsFn[T]) gin.HandlerFunc {
-	cfg := newDefaultConfig[T]()
-	for i := range opts {
-		opts[i](&cfg)
-	}
-	return func(c *gin.Context) {
-		cv, err := gAuth.GetCookie(c.Request, cfg.AuthConfig)
+func (m *mw[T]) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cv, err := gAuth.GetCookie(r, m.AuthConfig)
 		if errors.Is(err, gAuth.ErrorAuthCookieMissing) {
-			if cfg.NotAuthenticatedHandler != nil {
-				cfg.NotAuthenticatedHandler(c)
+			if m.NotAuthenticatedHandler != nil {
+				m.NotAuthenticatedHandler(w, r)
 				return
 			}
-			c.AbortWithStatus(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
 			return
 		} else if err != nil {
-			c.Error(err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		var identity T
-		if identity, err = cfg.Factory(c, cv); err == nil {
-			c.Set(cfg.ContextKey, identity)
+		if identity, err = m.Factory(w, r, cv); err == nil {
+			r.WithContext(context.WithValue(r.Context(), m.ContextKey, identity))
 		}
-
-		if cfg.AfterHandler != nil {
-			cfg.AfterHandler(c, identity)
+		if m.AfterHandler != nil {
+			m.AfterHandler(w, r, identity)
 		}
-
-		c.Next()
-	}
+		next.ServeHTTP(w, r)
+	})
 }

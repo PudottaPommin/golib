@@ -8,8 +8,8 @@ import (
 )
 
 type (
-	OptsFn func(*Config)
-	Config struct {
+	OptsFn func(*mw)
+	mw     struct {
 		// Next defines function to skip middleware when returned true
 		//
 		// Optional, Default: nil
@@ -25,30 +25,36 @@ type (
 	}
 )
 
-var (
-	defaultConfig = Config{
+var headerXRequestID = ghttp.HeaderXRequestID
+
+func New(opts ...OptsFn) *mw {
+	m := &mw{
 		Generator: func() string {
 			return id.New().String()
 		},
 		Header: ghttp.HeaderXRequestID,
 	}
-	headerXRequestID = ghttp.HeaderXRequestID
-)
+	for i := range opts {
+		opts[i](m)
+	}
+	headerXRequestID = m.Header
+	return m
+}
 
 func WithGenerator(fn func() string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.Generator = fn
 	}
 }
 
 func WithHeader(header string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.Header = header
 	}
 }
 
 func WithNext(fn func(w http.ResponseWriter, r *http.Request) bool) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.Next = fn
 	}
 }

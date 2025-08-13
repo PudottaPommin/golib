@@ -1,16 +1,16 @@
 package healthcheck
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type (
-	OptsFn func(*Config)
-	Config struct {
+	OptsFn func(*mw)
+	mw     struct {
 		// Next defines function to skip middleware when returned true
 		//
 		// Optional, Default: nil
-		Next  func(c *gin.Context) bool
+		Next  func(http.ResponseWriter, *http.Request) bool
 		Probe HealthCheck
 	}
 )
@@ -19,15 +19,18 @@ const (
 	DefaultHealthzEndpoint = "/healthz"
 )
 
-var defaultConfig = Config{
-	Next:  nil,
-	Probe: defaultProbe,
+func New(opts ...OptsFn) *mw {
+	m := &mw{Probe: defaultProbe}
+	for i := range opts {
+		opts[i](m)
+	}
+	return m
 }
 
-func defaultProbe(_ *gin.Context) bool { return true }
+func defaultProbe(_ http.ResponseWriter, _ *http.Request) bool { return true }
 
 func WithProbe(probe HealthCheck) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.Probe = probe
 	}
 }

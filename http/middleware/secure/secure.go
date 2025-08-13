@@ -2,54 +2,49 @@ package secure
 
 import (
 	"fmt"
+	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/pudottapommin/golib/http"
+	ghttp "github.com/pudottapommin/golib/http"
 )
 
-func New(opts ...OptsFn) gin.HandlerFunc {
-	cfg := defaultConfig
-	for i := range opts {
-		opts[i](&cfg)
-	}
-
-	return func(c *gin.Context) {
-		if cfg.Next != nil && cfg.Next(c) {
-			c.Next()
+func (m *mw) Handler(next http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m.Next != nil && m.Next(w, r) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		if cfg.XSSProtection != "" {
-			c.Header(http.HeaderXXSSProtection, cfg.XSSProtection)
+		if m.XSSProtection != "" {
+			w.Header().Set(ghttp.HeaderXXSSProtection, m.XSSProtection)
 		}
-		if cfg.ContentTypeNosniff != "" {
-			c.Header(http.HeaderXContentTypeOptions, cfg.ContentTypeNosniff)
+		if m.ContentTypeNosniff != "" {
+			w.Header().Set(ghttp.HeaderXContentTypeOptions, m.ContentTypeNosniff)
 		}
-		if cfg.XFrameOptions != "" {
-			c.Header(http.HeaderXFrameOptions, cfg.XFrameOptions)
+		if m.XFrameOptions != "" {
+			w.Header().Set(ghttp.HeaderXFrameOptions, m.XFrameOptions)
 		}
-		if cfg.ContentSecurityPolicy != "" {
-			if cfg.CSPReportOnly {
-				c.Header(http.HeaderContentSecurityPolicyReportOnly, cfg.ContentSecurityPolicy)
+		if m.ContentSecurityPolicy != "" {
+			if m.CSPReportOnly {
+				w.Header().Set(ghttp.HeaderContentSecurityPolicyReportOnly, m.ContentSecurityPolicy)
 			} else {
-				c.Header(http.HeaderContentSecurityPolicy, cfg.ContentSecurityPolicy)
+				w.Header().Set(ghttp.HeaderContentSecurityPolicy, m.ContentSecurityPolicy)
 			}
 		}
-		if cfg.ReferrerPolicy != "" {
-			c.Header(http.HeaderReferrerPolicy, cfg.ReferrerPolicy)
+		if m.ReferrerPolicy != "" {
+			w.Header().Set(ghttp.HeaderReferrerPolicy, m.ReferrerPolicy)
 		}
 
-		if (c.Request.TLS != nil || (c.Request.Header.Get(http.HeaderXForwardedProto) == "https")) && cfg.HSTSMaxAge > 0 {
+		if (r.TLS != nil || (r.Header.Get(ghttp.HeaderXForwardedProto) == "https")) && m.HSTSMaxAge > 0 {
 			var subdomains string
-			if !cfg.HSTSExcludeSubdomains {
+			if !m.HSTSExcludeSubdomains {
 				subdomains = "; includeSubdomains"
 			}
-			if cfg.HSTSPreloadEnabled {
+			if m.HSTSPreloadEnabled {
 				subdomains = fmt.Sprintf("%s; preload", subdomains)
 			}
-			c.Header(http.HeaderStrictTransportSecurity, fmt.Sprintf("max-age=%d%s", cfg.HSTSMaxAge, subdomains))
+			w.Header().Set(ghttp.HeaderStrictTransportSecurity, fmt.Sprintf("max-age=%d%s", m.HSTSMaxAge, subdomains))
 		}
 
-		c.Next()
-	}
+		next.ServeHTTP(w, r)
+	})
 }

@@ -1,51 +1,46 @@
 package csrf
 
 import (
+	"context"
 	"crypto/subtle"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	ghttp "github.com/pudottapommin/golib/http"
 )
 
-func New(opts ...OptsFn) gin.HandlerFunc {
-	cfg := defaultConfig
-	for i := range opts {
-		opts[i](&cfg)
-	}
-	return func(c *gin.Context) {
-		if cfg.Next != nil && cfg.Next(c) {
-			c.Next()
+func (m *mw) Handler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if m.Next != nil && m.Next(w, r) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
 		var token string
-		if v, err := c.Request.Cookie(cfg.CookieName); err != nil {
-			token = cfg.Generator()
+		if v, err := r.Cookie(m.CookieName); err != nil {
+			token = m.Generator()
 		} else {
 			token = v.Value
 		}
 
-		switch c.Request.Method {
+		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
 		default:
-			clientToken, _ := c.Cookie(cfg.CookieName)
-			if !validateToken(token, clientToken) {
-				setCookie(c, &cfg, "", -1)
-				c.AbortWithStatus(http.StatusForbidden)
+			clientToken, _ := r.Cookie(m.CookieName)
+			if clientToken == nil || !validateToken(token, clientToken.Value) {
+				setCookie(w, r, m, "", -1)
+				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 				return
 			}
 		}
-
-		setCookie(c, &cfg, token, int(cfg.CookieExpiration.Seconds()))
-		c.Set(ContextKey, token)
-		c.Next()
-	}
+		setCookie(w, r, m, token, int(m.CookieExpiration.Seconds()))
+		r.WithContext(context.WithValue(r.Context(), ContextKey, token))
+		next.ServeHTTP(w, r)
+	})
 }
 
-func setCookie(c *gin.Context, cfg *Config, token string, maxAge int) {
-	http.SetCookie(c.Writer, &http.Cookie{
+func setCookie(w http.ResponseWriter, r *http.Request, cfg *mw, token string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
 		Name:     cfg.CookieName,
 		Value:    token,
 		Path:     cfg.CookiePath,
@@ -55,7 +50,7 @@ func setCookie(c *gin.Context, cfg *Config, token string, maxAge int) {
 		HttpOnly: cfg.CookieHttpOnly,
 		SameSite: cfg.CookieSameSite,
 	})
-	c.Header(ghttp.HeaderVary, "Cookie")
+	r.Header.Set(ghttp.HeaderVary, "Cookie")
 }
 
 func validateToken(token, clientToken string) bool {

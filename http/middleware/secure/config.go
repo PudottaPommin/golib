@@ -1,16 +1,16 @@
 package secure
 
 import (
-	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 type (
-	OptsFn func(*Config)
-	Config struct {
+	OptsFn func(*mw)
+	mw     struct {
 		// Next defines function to skip middleware when returned true
 		//
 		// Optional, Default: nil
-		Next func(c *gin.Context) bool
+		Next func(w http.ResponseWriter, r *http.Request) bool
 		// XSSProtection provides protection against cross-site scripting attacks
 		// X-XSS-Protection:
 		//
@@ -65,8 +65,8 @@ type (
 	}
 )
 
-var (
-	defaultConfig = Config{
+func New(opts ...OptsFn) *mw {
+	m := &mw{
 		Next:                  nil,
 		XSSProtection:         "1; mode=block",
 		ContentTypeNosniff:    "nosniff",
@@ -74,40 +74,44 @@ var (
 		ContentSecurityPolicy: "",
 		ReferrerPolicy:        "",
 	}
-)
+	for i := range opts {
+		opts[i](m)
+	}
+	return m
+}
 
-func WithNext(fn func(*gin.Context) bool) OptsFn {
-	return func(c *Config) {
+func WithNext(fn func(w http.ResponseWriter, r *http.Request) bool) OptsFn {
+	return func(c *mw) {
 		c.Next = fn
 	}
 }
 
 func WithXSSProtection(value string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.XSSProtection = value
 	}
 }
 
 func WithContentTypeNosniff(value string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.ContentTypeNosniff = value
 	}
 }
 
 func WithXFrameOptions(value string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.XFrameOptions = value
 	}
 }
 
 func WithContentSecurityPolicy(value string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.ContentSecurityPolicy = value
 	}
 }
 
 func WithReferrerPolicy(value string) OptsFn {
-	return func(c *Config) {
+	return func(c *mw) {
 		c.ReferrerPolicy = value
 	}
 }

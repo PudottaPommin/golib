@@ -1,8 +1,12 @@
 package http
 
 const (
+	HeaderAcceptEncoding                  = "Accept-Encoding"
 	HeaderXRequestID                      = "X-Request-ID"
 	HeaderETag                            = "ETag"
+	HeaderContentType                     = "Content-Type"
+	HeaderContentEncoding                 = "Content-Encoding"
+	HeaderContentLength                   = "Content-Length"
 	HeaderIfNoneMatch                     = "If-None-Match"
 	HeaderIfMatch                         = "If-Match"
 	HeaderCacheControl                    = "Cache-Control"
