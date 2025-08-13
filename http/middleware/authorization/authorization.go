@@ -6,9 +6,9 @@ import (
 
 func (m *mw[T]) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		iden, ok := r.Context().Value(m.ContextKey).(T)
+		iden, ok := r.Context().Value(m.ContextKey).(*T)
 		if !ok {
-			m.UnauthorizedHandler(w, r, *new(T))
+			m.UnauthorizedHandler(w, r, new(T))
 			return
 		}
 

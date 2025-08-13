@@ -9,9 +9,9 @@ import (
 )
 
 type (
-	AuthorizeHandlerFn[T gAuth.Identity]    func(http.ResponseWriter, *http.Request, T) bool
-	AuthorizedHandlerFn[T gAuth.Identity]   func(http.ResponseWriter, *http.Request, T)
-	UnauthorizedHandlerFn[T gAuth.Identity] func(http.ResponseWriter, *http.Request, T)
+	AuthorizeHandlerFn[T gAuth.Identity]    func(http.ResponseWriter, *http.Request, *T) bool
+	AuthorizedHandlerFn[T gAuth.Identity]   func(http.ResponseWriter, *http.Request, *T)
+	UnauthorizedHandlerFn[T gAuth.Identity] func(http.ResponseWriter, *http.Request, *T)
 
 	OptsFn[T gAuth.Identity] func(*mw[T])
 	mw[T gAuth.Identity]     struct {
@@ -28,11 +28,11 @@ type (
 func New[T gAuth.Identity](opts ...OptsFn[T]) *mw[T] {
 	m := &mw[T]{
 		ContextKey: authentication.ContextKey,
-		AuthorizeHandler: func(w http.ResponseWriter, r *http.Request, t T) bool {
+		AuthorizeHandler: func(w http.ResponseWriter, r *http.Request, t *T) bool {
 			return golib.ToPointer(t) != nil
 		},
 		AuthorizedHandler: nil,
-		UnauthorizedHandler: func(w http.ResponseWriter, r *http.Request, _ T) {
+		UnauthorizedHandler: func(w http.ResponseWriter, r *http.Request, _ *T) {
 			w.WriteHeader(http.StatusUnauthorized)
 		},
 	}

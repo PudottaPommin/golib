@@ -16,7 +16,7 @@ type (
 		AuthConfig              *gAuth.Config
 		Factory                 func(http.ResponseWriter, *http.Request, *gAuth.CookieValue) (T, error)
 		// Optional, Default: nil
-		AfterHandler func(http.ResponseWriter, *http.Request, T)
+		AfterHandler func(http.ResponseWriter, *http.Request, *T)
 	}
 )
 
@@ -60,7 +60,7 @@ func WithFactory[T gAuth.Identity](factory func(http.ResponseWriter, *http.Reque
 	}
 }
 
-func WithAfterHandler[T gAuth.Identity](handler func(http.ResponseWriter, *http.Request, T)) OptsFn[T] {
+func WithAfterHandler[T gAuth.Identity](handler func(http.ResponseWriter, *http.Request, *T)) OptsFn[T] {
 	return func(c *mw[T]) {
 		c.AfterHandler = handler
 	}

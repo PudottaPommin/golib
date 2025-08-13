@@ -27,7 +27,7 @@ func (m *mw[T]) Handler(next http.Handler) http.Handler {
 			r.WithContext(context.WithValue(r.Context(), m.ContextKey, identity))
 		}
 		if m.AfterHandler != nil {
-			m.AfterHandler(w, r, identity)
+			m.AfterHandler(w, r, &identity)
 		}
 		next.ServeHTTP(w, r)
 	})

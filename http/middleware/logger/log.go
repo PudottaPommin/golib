@@ -25,27 +25,31 @@ func (m *mw) Handler(next http.Handler) http.Handler {
 		t1 := time.Now()
 		defer func() {
 			if l, ok := m.logger.(*zap.Logger); ok {
-				l.Info("served", keysAndValues(ww, r, t1)...)
+				l.Info("served",
+					zap.String("method", r.Method),
+					zap.String("path", r.URL.Path),
+					zap.Int("status", ww.Status()),
+					zap.String("statusText", statusLabel(ww.Status())),
+					zap.String("reqId", middleware.GetReqID(r.Context())),
+					zap.String("remoteAddr", r.RemoteAddr),
+					zap.String("proto", r.Proto),
+					zap.Duration("latency", time.Since(t1)),
+					zap.Int("size", ww.BytesWritten()))
 			} else if s, ok := m.logger.(*zap.SugaredLogger); ok {
-				s.Infow("served", any(keysAndValues(ww, r, t1)...))
+				s.Infow("served",
+					zap.String("method", r.Method),
+					zap.String("path", r.URL.Path),
+					zap.Int("status", ww.Status()),
+					zap.String("statusText", statusLabel(ww.Status())),
+					zap.String("reqId", middleware.GetReqID(r.Context())),
+					zap.String("remoteAddr", r.RemoteAddr),
+					zap.String("proto", r.Proto),
+					zap.Duration("latency", time.Since(t1)),
+					zap.Int("size", ww.BytesWritten()))
 			}
 		}()
 		next.ServeHTTP(ww, r)
 	})
-}
-
-func keysAndValues(w middleware.WrapResponseWriter, r *http.Request, t1 time.Time) []zap.Field {
-	return []zap.Field{
-		zap.String("method", r.Method),
-		zap.String("path", r.URL.Path),
-		zap.Int("status", w.Status()),
-		zap.String("statusText", statusLabel(w.Status())),
-		zap.String("reqId", middleware.GetReqID(r.Context())),
-		zap.String("remoteAddr", r.RemoteAddr),
-		zap.String("proto", r.Proto),
-		zap.Duration("latency", time.Since(t1)),
-		zap.Int("size", w.BytesWritten()),
-	}
 }
 
 func statusLabel(status int) string {
