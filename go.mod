@@ -8,9 +8,9 @@ require (
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/iancoleman/strcase v0.3.0
-	github.com/klauspost/compress v1.18.0
 	github.com/stretchr/testify v1.10.0
 	github.com/valyala/bytebufferpool v1.0.0
+	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sync v0.16.0
 	maragu.dev/gomponents v1.1.1-0.20250626090230-a30401d18438
@@ -39,6 +39,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
