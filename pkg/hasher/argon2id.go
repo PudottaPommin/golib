@@ -45,10 +45,7 @@ func (h *argon2idHasher) Hash(password string) (string, error) {
 	// [13:16] saltLen
 
 	buffer := buffers.Get()
-	defer func() {
-		buffer.Reset()
-		buffers.Put(buffer)
-	}()
+	defer buffers.PutAndReset(buffer)
 	buffer.Grow(argon2idOffset + saltLen + len(subkey))
 	buffer.WriteByte(byte(argon2idAlgorithm))
 	writeNetworkByteOrder(buffer, 1, uint(h.time))

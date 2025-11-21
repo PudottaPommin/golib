@@ -24,7 +24,7 @@ func (m *mw[T]) Handler(next http.Handler) http.Handler {
 		}
 		var identity T
 		if identity, err = m.Factory(w, r, cv); err == nil {
-			r.WithContext(context.WithValue(r.Context(), m.ContextKey, identity))
+			*r = *r.WithContext(context.WithValue(r.Context(), m.ContextKey, &identity))
 		}
 		if m.AfterHandler != nil {
 			m.AfterHandler(w, r, &identity)

@@ -3,7 +3,6 @@ package authorization
 import (
 	"net/http"
 
-	"github.com/pudottapommin/golib"
 	"github.com/pudottapommin/golib/http/middleware/authentication"
 	gAuth "github.com/pudottapommin/golib/pkg/auth"
 )
@@ -29,7 +28,7 @@ func New[T gAuth.Identity](opts ...OptsFn[T]) *mw[T] {
 	m := &mw[T]{
 		ContextKey: authentication.ContextKey,
 		AuthorizeHandler: func(w http.ResponseWriter, r *http.Request, t *T) bool {
-			return golib.ToPointer(t) != nil
+			return t != nil
 		},
 		AuthorizedHandler: nil,
 		UnauthorizedHandler: func(w http.ResponseWriter, r *http.Request, _ *T) {
