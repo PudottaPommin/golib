@@ -3,7 +3,7 @@ package logger
 import (
 	"net/http"
 
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 type (
@@ -15,13 +15,13 @@ type (
 		Next func(http.ResponseWriter, *http.Request) bool
 		// Name defines name of the logger
 		name string
-		// Logger defines logger for middleware either [zap.Logger] or [zap.SugaredLogger]
+		// Logger defines logger for middleware [zerolog.Logger]
 		logger any
 	}
 )
 
-func New(opts ...OptsFn) *mw {
-	m := &mw{}
+func New(opts ...OptsFn) (m *mw) {
+	m = new(mw)
 	for i := range opts {
 		opts[i](m)
 	}
@@ -38,19 +38,13 @@ func WithNext(next func(http.ResponseWriter, *http.Request) bool) OptsFn {
 // WithLogger sets the logger for the middleware
 func WithLogger(logger any, name string) OptsFn {
 	switch logger := logger.(type) {
-	case *zap.Logger:
+	case *zerolog.Logger:
 		return func(m *mw) {
-			logger = zap.New(logger.Core(), zap.AddCallerSkip(1)).Named(name)
-			logger.Debug("zap.logger detected for HTTP")
-			m.logger = logger
-		}
-	case *zap.SugaredLogger:
-		return func(m *mw) {
-			logger = zap.New(logger.Desugar().Core(), zap.AddCallerSkip(1)).Sugar().Named(name)
-			logger.Debug("zap.SugaredLogger logger detected for HTTP")
-			m.logger = logger
+			l := logger.With().Str("component", name).Logger()
+			l.Debug().Msg("zerolog.Logger detected for HTTP")
+			m.logger = &l
 		}
 	default:
-		panic("logger must be *zap.Logger or *zap.SuggarLogged")
+		panic("logger must be *zerolog.Logger")
 	}
 }

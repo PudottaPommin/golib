@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
+	"github.com/rs/zerolog"
 )
 
 func (m *mw) Handler(next http.Handler) http.Handler {
@@ -24,28 +24,18 @@ func (m *mw) Handler(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		t1 := time.Now()
 		defer func() {
-			if l, ok := m.logger.(*zap.Logger); ok {
-				l.Info("served",
-					zap.String("method", r.Method),
-					zap.String("path", r.URL.Path),
-					zap.Int("status", ww.Status()),
-					zap.String("statusText", statusLabel(ww.Status())),
-					zap.String("reqId", middleware.GetReqID(r.Context())),
-					zap.String("remoteAddr", r.RemoteAddr),
-					zap.String("proto", r.Proto),
-					zap.Duration("latency", time.Since(t1)),
-					zap.Int("size", ww.BytesWritten()))
-			} else if s, ok := m.logger.(*zap.SugaredLogger); ok {
-				s.Infow("served",
-					zap.String("method", r.Method),
-					zap.String("path", r.URL.Path),
-					zap.Int("status", ww.Status()),
-					zap.String("statusText", statusLabel(ww.Status())),
-					zap.String("reqId", middleware.GetReqID(r.Context())),
-					zap.String("remoteAddr", r.RemoteAddr),
-					zap.String("proto", r.Proto),
-					zap.Duration("latency", time.Since(t1)),
-					zap.Int("size", ww.BytesWritten()))
+			if l, ok := m.logger.(*zerolog.Logger); ok {
+				l.Info().
+					Str("method", r.Method).
+					Str("path", r.URL.Path).
+					Int("status", ww.Status()).
+					Str("statusText", statusLabel(ww.Status())).
+					Str("reqId", middleware.GetReqID(r.Context())).
+					Str("remoteAddr", r.RemoteAddr).
+					Str("proto", r.Proto).
+					Dur("latency", time.Since(t1)).
+					Int("size", ww.BytesWritten()).
+					Msg("served")
 			}
 		}()
 		next.ServeHTTP(ww, r)

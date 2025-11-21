@@ -30,7 +30,6 @@ func (p *Pool[T]) Put(t T) {
 
 // PutAndReset is a generic wrapper around sync.Pool's Put method.
 func (p *Pool[T]) PutAndReset(t T) {
-
 	switch v := any(t).(type) {
 	case []byte:
 		clear(v)

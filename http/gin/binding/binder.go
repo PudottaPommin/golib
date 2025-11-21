@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +25,7 @@ type BindingError struct {
 }
 
 // NewBindingError creates a new instance of binding error
-func NewBindingError(sourceParam string, values []string, message interface{}, internalError error) error {
+func NewBindingError(sourceParam string, values []string, message any, internalError error) error {
 	return &BindingError{
 		Field:  sourceParam,
 		Values: values,
@@ -47,7 +48,7 @@ type ValueBinder struct {
 	// ValuesFunc is used to get all values for parameter from request. i.e. `/api/search?ids=1&ids=2`
 	ValuesFunc func(sourceParam string) []string
 	// ErrorFunc is used to create errors. Allows you to use your own error type, that for example marshals to your specific json response
-	ErrorFunc func(sourceParam string, values []string, message interface{}, internalError error) error
+	ErrorFunc func(sourceParam string, values []string, message any, internalError error) error
 	errors    []error
 	// failFast is a flag for binding methods to return without attempting to bind when previous binding already failed
 	failFast bool
@@ -201,6 +202,9 @@ func (b *ValueBinder) time(key string, dest *time.Time, layout string, valueMust
 			b.setError(b.ErrorFunc(key, []string{value}, "required field value is empty", nil))
 		}
 		return b
+	}
+	if layout == time.TimeOnly && strings.Count(value, ":") == 1 {
+		value += ":00"
 	}
 	t, err := time.Parse(layout, value)
 	if err != nil {
