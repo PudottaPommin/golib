@@ -1,9 +1,8 @@
 package logger
 
 import (
+	"log/slog"
 	"net/http"
-
-	"github.com/rs/zerolog"
 )
 
 type (
@@ -15,7 +14,7 @@ type (
 		Next func(http.ResponseWriter, *http.Request) bool
 		// Name defines name of the logger
 		name string
-		// Logger defines logger for middleware [zerolog.Logger]
+		// Logger defines logger for middleware [slog.Logger]
 		logger any
 	}
 )
@@ -38,13 +37,13 @@ func WithNext(next func(http.ResponseWriter, *http.Request) bool) OptsFn {
 // WithLogger sets the logger for the middleware
 func WithLogger(logger any, name string) OptsFn {
 	switch logger := logger.(type) {
-	case *zerolog.Logger:
+	case *slog.Logger:
 		return func(m *mw) {
-			l := logger.With().Str("component", name).Logger()
-			l.Debug().Msg("zerolog.Logger detected for HTTP")
+			l := logger.With("component", name)
+			l.Debug("slog.Logger detected for HTTP")
 			m.logger = &l
 		}
 	default:
-		panic("logger must be *zerolog.Logger")
+		panic("logger must be *slog.Logger")
 	}
 }

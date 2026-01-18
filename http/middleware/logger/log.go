@@ -2,11 +2,11 @@ package logger
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog"
 )
 
 func (m *mw) Handler(next http.Handler) http.Handler {
@@ -24,18 +24,18 @@ func (m *mw) Handler(next http.Handler) http.Handler {
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		t1 := time.Now()
 		defer func() {
-			if l, ok := m.logger.(*zerolog.Logger); ok {
-				l.Info().
-					Str("method", r.Method).
-					Str("path", r.URL.Path).
-					Int("status", ww.Status()).
-					Str("statusText", statusLabel(ww.Status())).
-					Str("reqId", middleware.GetReqID(r.Context())).
-					Str("remoteAddr", r.RemoteAddr).
-					Str("proto", r.Proto).
-					Dur("latency", time.Since(t1)).
-					Int("size", ww.BytesWritten()).
-					Msg("served")
+			switch logger := m.logger.(type) {
+			case *slog.Logger:
+				logger.Info("served",
+					slog.String("method", r.Method),
+					slog.String("path", r.URL.Path),
+					slog.Int("status", ww.Status()),
+					slog.String("statusText", statusLabel(ww.Status())),
+					slog.String("reqId", middleware.GetReqID(r.Context())),
+					slog.String("remoteAddr", r.RemoteAddr),
+					slog.String("proto", r.Proto),
+					slog.Duration("latency", time.Since(t1)),
+					slog.Int("size", ww.BytesWritten()))
 			}
 		}()
 		next.ServeHTTP(ww, r)
