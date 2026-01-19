@@ -39,7 +39,13 @@ func WithLogger(logger any, name string) OptsFn {
 	switch logger := logger.(type) {
 	case *slog.Logger:
 		return func(m *mw) {
-			l := logger.With("component", name)
+			l := logger.With("group", name)
+			l.Debug("slog.Logger detected for HTTP")
+			m.logger = l
+		}
+	case slog.Logger:
+		return func(m *mw) {
+			l := logger.With("group", name)
 			l.Debug("slog.Logger detected for HTTP")
 			m.logger = &l
 		}

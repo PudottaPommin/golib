@@ -26,7 +26,7 @@ func (m *mw) Handler(next http.Handler) http.Handler {
 		defer func() {
 			switch logger := m.logger.(type) {
 			case *slog.Logger:
-				logger.Info("served",
+				logger.Info("response",
 					slog.String("method", r.Method),
 					slog.String("path", r.URL.Path),
 					slog.Int("status", ww.Status()),
