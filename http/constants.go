@@ -10,6 +10,7 @@ const (
 	HeaderIfNoneMatch                     = "If-None-Match"
 	HeaderIfMatch                         = "If-Match"
 	HeaderCacheControl                    = "Cache-Control"
+	HeaderAuthorization                   = "Authorization"
 	HeaderStrictTransportSecurity         = "Strict-Transport-Security"
 	HeaderXForwardedProto                 = "X-Forwarded-Proto"
 	HeaderXContentTypeOptions             = "X-Content-Type-Options"
@@ -19,4 +20,5 @@ const (
 	HeaderContentSecurityPolicyReportOnly = "Content-Security-Policy-Report-Only"
 	HeaderReferrerPolicy                  = "Referrer-Policy"
 	HeaderVary                            = "Vary"
+	HeaderXCSRFToken                      = "X-CSRF-Token"
 )
