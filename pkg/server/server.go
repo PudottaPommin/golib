@@ -17,6 +17,10 @@ func New(ctx context.Context, e *chi.Mux) *Server {
 	return &Server{ctx: ctx, e: e}
 }
 
+func (s *Server) Ctx() context.Context {
+	return s.ctx
+}
+
 func (s *Server) E() *chi.Mux {
 	return s.e
 }
