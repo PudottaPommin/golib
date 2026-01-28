@@ -155,6 +155,14 @@ func WithStore(store Store) OptsFn {
 	}
 }
 
+func FromContextFieldName(ctx context.Context) string {
+	v, ok := ctx.Value(FormFieldContextKey).(string)
+	if !ok {
+		return ""
+	}
+	return v
+}
+
 func FromContext(ctx context.Context) []byte {
 	v, ok := ctx.Value(ContextKey).([]byte)
 	if !ok {

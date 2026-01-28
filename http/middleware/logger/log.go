@@ -31,7 +31,7 @@ func (m *mw) Handler(next http.Handler) http.Handler {
 					slog.String("path", r.URL.Path),
 					slog.Int("status", ww.Status()),
 					slog.String("statusText", statusLabel(ww.Status())),
-					slog.String("reqId", middleware.GetReqID(r.Context())),
+					slog.String("reqId", r.Header.Get("X-Request-Id")),
 					slog.String("remoteAddr", r.RemoteAddr),
 					slog.String("proto", r.Proto),
 					slog.Duration("latency", time.Since(t1)),

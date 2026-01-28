@@ -230,7 +230,7 @@ func Test_ETag_CustomEtagPut(t *testing.T) {
 
 // func Benchmark_Etag(b *testing.B) {
 // 	r := http.NewServeMux()
-// 	r.Handle("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 	r.Handler("/", New()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 // 		_, _ = w.Write([]byte("Hello, World!"))
 // 		w.WriteHeader(http.StatusOK)
 // 	})))

@@ -7,7 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.4
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/iancoleman/strcase v0.3.0
-	github.com/klauspost/compress v1.18.3-0.20260122164757-430964470692
+	github.com/klauspost/compress v1.18.3-0.20260128085424-4a368369aa67
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/bytebufferpool v1.0.0
 	golang.org/x/crypto v0.47.0
