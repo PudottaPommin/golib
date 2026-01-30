@@ -9,7 +9,7 @@ func WithEncoder(enc Encoder) OptFn {
 	}
 }
 
-// WithEncryptor overrides the encryptor (nil disables encryption).
+// WithEncryptor overrides the aesEncryptor (nil disables encryption).
 func WithEncryptor(enc Encryptor) OptFn {
 	return func(sc *Cookie) {
 		sc.encryptor = enc
