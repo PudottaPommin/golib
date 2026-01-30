@@ -16,6 +16,11 @@ type (
 		ips         map[string]struct{}
 		ranges      []*net.IPNet
 
+		// Next defines function to skip middleware when returned true
+		//
+		// Optional, Default: nil
+		Next           func(http.ResponseWriter, *http.Request) bool
+		Logger         *slog.Logger
 		TrustedProxies []string
 		FromHeaders    []string
 	}
@@ -59,6 +64,10 @@ func New(opts ...OptsFn) *Middleware {
 
 func (mw *Middleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if mw.Next != nil && mw.Next(w, r) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		ip := mw.getRealIP(r)
 		if !strings.EqualFold(r.RemoteAddr, ip) {
 			r.RemoteAddr = ip
@@ -68,8 +77,14 @@ func (mw *Middleware) Handler(next http.Handler) http.Handler {
 }
 
 func (mw *Middleware) getRealIP(r *http.Request) string {
-	slog.Debug("Getting real IP", "remoteAddr", r.RemoteAddr)
-	remoteIP := net.ParseIP(r.RemoteAddr)
+	if mw.Logger != nil {
+		mw.Logger.Debug("Getting real IP", "remoteAddr", r.RemoteAddr)
+	}
+	remAddr := r.RemoteAddr
+	if split := strings.Split(remAddr, ":"); len(split) > 0 {
+		remAddr = split[0]
+	}
+	remoteIP := net.ParseIP(remAddr)
 	if !mw.isProxyTrusted(remoteIP) {
 		return r.RemoteAddr
 	}
