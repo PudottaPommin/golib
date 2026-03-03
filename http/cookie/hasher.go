@@ -22,20 +22,20 @@ func (h hasher) algo() hash.Hash {
 }
 
 func (h hasher) Hash(data []byte) ([]byte, error) {
-	hasher := h.algo()
-	if _, err := hasher.Write(data); err != nil {
+	algo := h.algo()
+	if _, err := algo.Write(data); err != nil {
 		return nil, err
 	}
-	return hasher.Sum(nil), nil
+	return algo.Sum(nil), nil
 }
 
 func (h hasher) Verify(data, mac []byte) error {
-	data, err := h.Hash(data)
+	hashed, err := h.Hash(data)
 	if err != nil {
-		return fmt.Errorf("[Hasher] failed to verify: %w", err)
+		return err
 	}
-	if len(data) == len(mac) && subtle.ConstantTimeCompare(data, mac) == 1 {
+	if len(hashed) == len(mac) && subtle.ConstantTimeCompare(hashed, mac) == 1 {
 		return nil
 	}
-	return fmt.Errorf("[Hasher] failed to verify: MAC mismatch")
+	return fmt.Errorf("failed to verify due to: MAC mismatch")
 }

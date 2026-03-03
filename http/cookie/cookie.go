@@ -2,14 +2,11 @@
 package cookie
 
 import (
-	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
-	"strconv"
 	"time"
 )
-
-const macSeparator byte = '|'
 
 type Cookie struct {
 	encoder    Encoder
@@ -40,6 +37,10 @@ func New(hashKey, blockKey []byte, options ...OptFn) (sc *Cookie, err error) {
 	return
 }
 
+// Binary format:
+// [timestamp: 8][val_len: 4][value: N][mac: M]
+// Total size = 12 + N + M
+
 func (sc *Cookie) Secure(name string, value any) ([]byte, error) {
 	var (
 		buf []byte
@@ -55,16 +56,30 @@ func (sc *Cookie) Secure(name string, value any) ([]byte, error) {
 			return nil, fmt.Errorf("[Cookie] failed to Secure: %w", err)
 		}
 	}
-	// HMAC
-	buf = []byte(fmt.Sprintf("%s%c%d%c%s%c", name, macSeparator, sc.timestamp(), macSeparator, buf, macSeparator))
-	h, err := sc.mac.Hash(buf[:len(buf)-1])
+
+	ts := sc.timestamp()
+	
+	// Create payload for signing
+	// We sign: name + ts(8) + value
+	sigBuf := make([]byte, len(name)+8+len(buf))
+	copy(sigBuf, name)
+	binary.BigEndian.PutUint64(sigBuf[len(name):], uint64(ts))
+	copy(sigBuf[len(name)+8:], buf)
+
+	h, err := sc.mac.Hash(sigBuf)
 	if err != nil {
 		return nil, fmt.Errorf("[Cookie] failed to Secure: %w", err)
 	}
-	buf = append(buf[len(name)+1:], h...)
+
+	// Final binary blob: [ts:8][vlen:4][val:N][mac:M]
+	final := make([]byte, 8+4+len(buf)+len(h))
+	binary.BigEndian.PutUint64(final[0:], uint64(ts))
+	binary.BigEndian.PutUint32(final[8:], uint32(len(buf)))
+	copy(final[12:], buf)
+	copy(final[12+len(buf):], h)
 
 	// Encode to base64
-	if buf, err = sc.urlEncoder.Encode(buf); err != nil {
+	if buf, err = sc.urlEncoder.Encode(final); err != nil {
 		return nil, fmt.Errorf("[Cookie] failed to Secure: %w", err)
 	}
 	// Check length, if provided
@@ -87,37 +102,49 @@ func (sc *Cookie) Decrypt(name, value string, dst any) error {
 	if err = sc.urlEncoder.Decode([]byte(value), &buf); err != nil {
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
 	}
-	// Verify MAC
-	parts := bytes.SplitN(buf, []byte{macSeparator}, 3)
-	if len(parts) != 3 {
-		return fmt.Errorf("[Cookie] failed to Decrypt: wrong MAC separators count")
+
+	if len(buf) < 12 {
+		return fmt.Errorf("[Cookie] failed to Decrypt: cookie is too short")
 	}
-	// We remake the buffer from name + separator and part 1+2
-	buf = append([]byte(name+string(macSeparator)), buf[:len(buf)-len(parts[2])-1]...)
-	if err = sc.mac.Verify(buf, parts[2]); err != nil {
+
+	ts := int64(binary.BigEndian.Uint64(buf[0:8]))
+	vlen := int(binary.BigEndian.Uint32(buf[8:12]))
+
+	if len(buf) < 12+vlen {
+		return fmt.Errorf("[Cookie] failed to Decrypt: value length mismatch")
+	}
+
+	val := buf[12 : 12+vlen]
+	mac := buf[12+vlen:]
+
+	// Verify MAC
+	// We sign: name + ts(8) + value
+	sigBuf := make([]byte, len(name)+8+len(val))
+	copy(sigBuf, name)
+	binary.BigEndian.PutUint64(sigBuf[len(name):], uint64(ts))
+	copy(sigBuf[len(name)+8:], val)
+
+	if err = sc.mac.Verify(sigBuf, mac); err != nil {
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
 	}
+
 	// Verify dates
-	var t1 int64
-	if t1, err = strconv.ParseInt(string(parts[0]), 10, 64); err != nil {
-		return fmt.Errorf("[Cookie] failed to Decrypt: invalid timestamp format")
-	}
 	t2 := sc.timestamp()
-	if sc.minAge != 0 && t2-t1 < sc.minAge {
+	if sc.minAge != 0 && t2-ts < sc.minAge {
 		return fmt.Errorf("[Cookie] failed to Decrypt: cookie is too new")
 	}
-	if sc.maxAge != 0 && t2-t1 > sc.maxAge {
+	if sc.maxAge != 0 && t2-ts > sc.maxAge {
 		return fmt.Errorf("[Cookie] failed to Decrypt: cookie has expired")
 	}
+
 	// Decrypt if encrypted
-	buf = parts[1]
 	if sc.encryptor != nil {
-		if buf, err = sc.encryptor.Decrypt(buf); err != nil {
+		if val, err = sc.encryptor.Decrypt(val); err != nil {
 			return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
 		}
 	}
 	// Deserialize
-	if err = sc.encoder.Decode(buf, dst); err != nil {
+	if err = sc.encoder.Decode(val, dst); err != nil {
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
 	}
 	return nil

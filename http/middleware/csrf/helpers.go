@@ -7,10 +7,7 @@ import (
 )
 
 func validateToken(realToken, requestToken []byte) bool {
-	if len(realToken) != len(requestToken) {
-		return false
-	}
-	return subtle.ConstantTimeCompare(realToken, requestToken) == 1
+	return len(realToken) == len(requestToken) && subtle.ConstantTimeCompare(realToken, requestToken) == 1
 }
 
 func xorToken(token, mask []byte) []byte {

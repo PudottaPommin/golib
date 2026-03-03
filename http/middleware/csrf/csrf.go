@@ -41,7 +41,7 @@ func (mw *Middleware) Handler(next http.Handler) http.Handler {
 		default:
 			maskedRequestToken, err := mw.getRequestToken(requestExtractor, r)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "invalid CSRF token", http.StatusBadRequest)
 				return
 			}
 			if maskedRequestToken == nil {

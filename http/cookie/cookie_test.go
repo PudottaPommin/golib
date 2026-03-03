@@ -82,3 +82,35 @@ func TestNoopEncoder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, message, decodedMessage)
 }
+
+type mockEncryptor struct {
+	data []byte
+}
+
+func (m *mockEncryptor) Encrypt(src []byte) ([]byte, error) {
+	return m.data, nil
+}
+
+func (m *mockEncryptor) Decrypt(src []byte) ([]byte, error) {
+	return src, nil
+}
+
+func TestMACMismatchWithSeparator(t *testing.T) {
+	hashKey := []byte("very-secret-hash-key-32-bytes-!!")
+	// We use a mock encryptor that returns data containing the separator '|'
+	mockEnc := &mockEncryptor{data: []byte("part1|part2")}
+
+	sc, err := New(hashKey, nil, WithEncryptor(mockEnc), WithEncoder(&NoopEncoder{}))
+	assert.NoError(t, err)
+
+	name := "test-cookie"
+	value := []byte("some-value")
+
+	secured, err := sc.Secure(name, value)
+	assert.NoError(t, err)
+
+	var decrypted []byte
+	err = sc.Decrypt(name, string(secured), &decrypted)
+	assert.NoError(t, err, "Should be able to decrypt even if data contains separator")
+	assert.Equal(t, mockEnc.data, decrypted)
+}

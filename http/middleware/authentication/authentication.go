@@ -11,15 +11,15 @@ import (
 func (m *mw[T]) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cv, err := gAuth.GetCookie(r, m.AuthConfig)
-		if errors.Is(err, gAuth.ErrorAuthCookieMissing) {
+		if err != nil {
+			if !errors.Is(err, gAuth.ErrorAuthCookieMissing) {
+				_ = gAuth.DeleteCookie(r, w, m.AuthConfig)
+			}
 			if m.NotAuthenticatedHandler != nil {
 				m.NotAuthenticatedHandler(w, r)
 				return
 			}
 			w.WriteHeader(http.StatusUnauthorized)
-			return
-		} else if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		var identity T
