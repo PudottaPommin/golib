@@ -41,8 +41,8 @@ func (c chacha20poly1305Encryptor) Decrypt(src []byte) ([]byte, error) {
 	return data, nil
 }
 
-type aesEncryptor struct {
-	block cipher.Block
+type aesGcmEncryptor struct {
+	aead cipher.AEAD
 }
 
 func NewDefaultEncryptor(key []byte) (Encryptor, error) {
@@ -50,27 +50,24 @@ func NewDefaultEncryptor(key []byte) (Encryptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &aesEncryptor{block: block}, nil
-}
-
-func (e aesEncryptor) Encrypt(src []byte) ([]byte, error) {
-	iv := GenerateRandomKey(e.block.BlockSize())
-	ctrXOR(e.block, iv, src, src)
-	return append(iv, src...), nil
-}
-
-func (e aesEncryptor) Decrypt(src []byte) ([]byte, error) {
-	size := e.block.BlockSize()
-	if len(src) < size {
-		return nil, errors.New("[Decrypt] block size is greater than src length")
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
 	}
-	iv := src[:size]
-	src = src[size:]
-	ctrXOR(e.block, iv, src, src)
-	return src, nil
+	return &aesGcmEncryptor{aead: aead}, nil
 }
 
-func ctrXOR(block cipher.Block, iv, src, dst []byte) {
-	stream := cipher.NewCTR(block, iv)
-	stream.XORKeyStream(src, dst)
+func (e aesGcmEncryptor) Encrypt(src []byte) ([]byte, error) {
+	nonce := GenerateRandomKey(e.aead.NonceSize())
+	return append(nonce, e.aead.Seal(nil, nonce, src, nil)...), nil
+}
+
+func (e aesGcmEncryptor) Decrypt(src []byte) ([]byte, error) {
+	size := e.aead.NonceSize()
+	if len(src) < size {
+		return nil, errors.New("block size is greater than src length")
+	}
+	nonce := src[:size]
+	src = src[size:]
+	return e.aead.Open(nil, nonce, src, nil)
 }

@@ -1,6 +1,17 @@
 package binding
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrRequired        = errors.New("required field value is empty")
+	ErrInvalidUUID     = errors.New("invalid uuid value")
+	ErrInvalidTime     = errors.New("failed to bind field to value Time")
+	ErrInvalidBool     = errors.New("failed to bind field value to bool")
+	ErrInvalidBindable = errors.New("failed to bind field value to IBindable")
+)
 
 type HTTPError struct {
 	Internal error `json:"-"` // Stores the error returned by an external dependency

@@ -1,6 +1,8 @@
 package cookie
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,4 +115,55 @@ func TestMACMismatchWithSeparator(t *testing.T) {
 	err = sc.Decrypt(name, string(secured), &decrypted)
 	assert.NoError(t, err, "Should be able to decrypt even if data contains separator")
 	assert.Equal(t, mockEnc.data, decrypted)
+}
+
+func TestSecureCookie_DecryptErrors(t *testing.T) {
+	key := make([]byte, 32)
+	sc, _ := New(key, key)
+
+	t.Run("Value too long", func(t *testing.T) {
+		err := sc.Decrypt("test", string(make([]byte, 5000)), nil)
+		assert.ErrorIs(t, err, ErrValueTooLong)
+	})
+
+	t.Run("Malformed base64", func(t *testing.T) {
+		err := sc.Decrypt("test", "invalid-base64-!!!", nil)
+		assert.Error(t, err)
+		assert.NotErrorIs(t, err, ErrCookieTooShort)
+	})
+
+	t.Run("Cookie too short", func(t *testing.T) {
+		val := base64.URLEncoding.EncodeToString([]byte("short"))
+		err := sc.Decrypt("test", val, nil)
+		assert.ErrorIs(t, err, ErrCookieTooShort)
+	})
+
+	t.Run("Value length mismatch", func(t *testing.T) {
+		// [ts:8][vlen:4]...
+		buf := make([]byte, 12)
+		binary.BigEndian.PutUint32(buf[8:], 100) // vlen = 100, but buf is only 12
+		val := base64.URLEncoding.EncodeToString(buf)
+		err := sc.Decrypt("test", val, nil)
+		assert.ErrorIs(t, err, ErrValueLengthMismatch)
+	})
+
+	t.Run("MAC verification failure", func(t *testing.T) {
+		secured, _ := sc.Secure("test", "message")
+		// Decode first to tamper with payload
+		var buf []byte
+		_ = sc.urlEncoder.Decode([]byte(secured), &buf)
+		buf[len(buf)-1] ^= 0xFF
+
+		// Re-encode
+		tampered, _ := sc.urlEncoder.Encode(buf)
+		err := sc.Decrypt("test", string(tampered), nil)
+		assert.ErrorIs(t, err, ErrVerificationFailed)
+	})
+
+	t.Run("Expired cookie", func(t *testing.T) {
+		scExpired, _ := New(key, key, WithMaxAge(-1)) // -1 means always expired
+		secured, _ := sc.Secure("test", "message")
+		err := scExpired.Decrypt("test", string(secured), nil)
+		assert.ErrorIs(t, err, ErrCookieExpired)
+	})
 }

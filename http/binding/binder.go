@@ -97,14 +97,14 @@ func (b *ValueBinder) uuid(key string, dest *uuid.UUID, valueMustExist bool) *Va
 	value := b.ValueFunc(key)
 	if value == "" {
 		if valueMustExist {
-			b.setError(b.ErrorFunc(key, []string{value}, "required field value is empty", nil))
+			b.setError(b.ErrorFunc(key, []string{value}, ErrRequired.Error(), nil))
 		}
 		return b
 	}
 
 	id, err := uuid.FromString(value)
 	if err != nil {
-		b.setError(b.ErrorFunc(key, []string{value}, "invalid uuid value", nil))
+		b.setError(b.ErrorFunc(key, []string{value}, ErrInvalidUUID.Error(), nil))
 		return b
 	}
 	*dest = id
@@ -143,7 +143,7 @@ func (b *ValueBinder) time(key string, dest *time.Time, layout string, valueMust
 	value := b.ValueFunc(key)
 	if value == "" {
 		if valueMustExist {
-			b.setError(b.ErrorFunc(key, []string{value}, "required field value is empty", nil))
+			b.setError(b.ErrorFunc(key, []string{value}, ErrRequired.Error(), nil))
 		}
 		return b
 	}
@@ -152,7 +152,7 @@ func (b *ValueBinder) time(key string, dest *time.Time, layout string, valueMust
 	}
 	t, err := time.Parse(layout, value)
 	if err != nil {
-		b.setError(b.ErrorFunc(key, []string{value}, "failed to bind field to value Time", err))
+		b.setError(b.ErrorFunc(key, []string{value}, ErrInvalidTime.Error(), err))
 		return b
 	}
 	*dest = t
@@ -181,7 +181,7 @@ func (b *ValueBinder) String(sourceParam string, dest *string) *ValueBinder {
 
 	value := b.ValueFunc(sourceParam)
 	if value == "" {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "required field value is empty", nil))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrRequired.Error(), nil))
 		return b
 	}
 	*dest = value
@@ -206,7 +206,7 @@ func (b *ValueBinder) boolValue(sourceParam string, dest *bool, valueMustExist b
 	value := b.ValueFunc(sourceParam)
 	if value == "" {
 		if valueMustExist {
-			b.setError(b.ErrorFunc(sourceParam, []string{}, "required field value is empty", nil))
+			b.setError(b.ErrorFunc(sourceParam, []string{}, ErrRequired.Error(), nil))
 		}
 		return b
 	}
@@ -216,7 +216,7 @@ func (b *ValueBinder) boolValue(sourceParam string, dest *bool, valueMustExist b
 func (b *ValueBinder) bool(sourceParam string, value string, dest *bool) *ValueBinder {
 	n, err := strconv.ParseBool(value)
 	if err != nil {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "failed to bind field value to bool", err))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrInvalidBool.Error(), err))
 		return b
 	}
 
@@ -235,7 +235,7 @@ func (b *ValueBinder) ShouldCustom(sourceParam string, dest IBindable) *ValueBin
 		return b
 	}
 	if err := dest.Parse(value); err != nil {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "failed to bind field value to IBindable", err))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrInvalidBindable.Error(), err))
 	}
 	return b
 }
@@ -248,11 +248,11 @@ func (b *ValueBinder) Custom(sourceParam string, dest IBindable) *ValueBinder {
 
 	value := b.ValueFunc(sourceParam)
 	if value == "" {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "required field value is empty", nil))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrRequired.Error(), nil))
 		return b
 	}
 	if err := dest.Parse(value); err != nil {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "failed to bind field value to IBindable", err))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrInvalidBindable.Error(), err))
 	}
 	return b
 }
@@ -264,11 +264,11 @@ func (b *ValueBinder) CustomFunc(sourceParam string, fn func(string) error) *Val
 
 	value := b.ValueFunc(sourceParam)
 	if value == "" {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "required field value is empty", nil))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrRequired.Error(), nil))
 		return b
 	}
 	if err := fn(value); err != nil {
-		b.setError(b.ErrorFunc(sourceParam, []string{value}, "failed to bind field value to IBindable", err))
+		b.setError(b.ErrorFunc(sourceParam, []string{value}, ErrInvalidBindable.Error(), err))
 	}
 	return b
 }

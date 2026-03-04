@@ -4,8 +4,19 @@ package cookie
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"time"
+)
+
+var (
+	ErrValueTooLong        = errors.New("value is too long")
+	ErrCookieTooShort      = errors.New("cookie is too short")
+	ErrValueLengthMismatch = errors.New("value length mismatch")
+	ErrCookieTooNew        = errors.New("cookie is too new")
+	ErrCookieExpired       = errors.New("cookie has expired")
+	ErrDecryptionFailed    = errors.New("decryption failed")
+	ErrVerificationFailed  = errors.New("mac verification failed")
 )
 
 type Cookie struct {
@@ -22,7 +33,7 @@ type Cookie struct {
 func New(hashKey, blockKey []byte, options ...OptFn) (sc *Cookie, err error) {
 	sc = &Cookie{
 		mac:        &hasher{key: hashKey},
-		encoder:    &GobEncoder{},
+		encoder:    &JSONEncoder{},
 		urlEncoder: &Base64Encoder{},
 		maxLength:  4096,
 	}
@@ -92,7 +103,7 @@ func (sc *Cookie) Secure(name string, value any) ([]byte, error) {
 
 func (sc *Cookie) Decrypt(name, value string, dst any) error {
 	if sc.maxLength != 0 && len(value) > sc.maxLength {
-		return fmt.Errorf("[Cookie] failed to Decrypt: value is too long %d", len(value))
+		return fmt.Errorf("[Cookie] failed to Decrypt %d: %w", len(value), ErrValueTooLong)
 	}
 	var (
 		buf []byte
@@ -104,14 +115,14 @@ func (sc *Cookie) Decrypt(name, value string, dst any) error {
 	}
 
 	if len(buf) < 12 {
-		return fmt.Errorf("[Cookie] failed to Decrypt: cookie is too short")
+		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrCookieTooShort)
 	}
 
 	ts := int64(binary.BigEndian.Uint64(buf[0:8]))
 	vlen := int(binary.BigEndian.Uint32(buf[8:12]))
 
 	if len(buf) < 12+vlen {
-		return fmt.Errorf("[Cookie] failed to Decrypt: value length mismatch")
+		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrValueLengthMismatch)
 	}
 
 	val := buf[12 : 12+vlen]
@@ -125,22 +136,22 @@ func (sc *Cookie) Decrypt(name, value string, dst any) error {
 	copy(sigBuf[len(name)+8:], val)
 
 	if err = sc.mac.Verify(sigBuf, mac); err != nil {
-		return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
+		return fmt.Errorf("[Cookie] failed to Decrypt: %w: %w", ErrVerificationFailed, err)
 	}
 
 	// Verify dates
 	t2 := sc.timestamp()
 	if sc.minAge != 0 && t2-ts < sc.minAge {
-		return fmt.Errorf("[Cookie] failed to Decrypt: cookie is too new")
+		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrCookieTooNew)
 	}
 	if sc.maxAge != 0 && t2-ts > sc.maxAge {
-		return fmt.Errorf("[Cookie] failed to Decrypt: cookie has expired")
+		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrCookieExpired)
 	}
 
 	// Decrypt if encrypted
 	if sc.encryptor != nil {
 		if val, err = sc.encryptor.Decrypt(val); err != nil {
-			return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
+			return fmt.Errorf("[Cookie] failed to Decrypt: %w: %w", ErrDecryptionFailed, err)
 		}
 	}
 	// Deserialize

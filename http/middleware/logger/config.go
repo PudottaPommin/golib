@@ -35,20 +35,29 @@ func WithNext(next func(http.ResponseWriter, *http.Request) bool) OptsFn {
 }
 
 // WithLogger sets the logger for the middleware
-func WithLogger(logger any, name string) OptsFn {
-	switch logger := logger.(type) {
+func WithLogger(l any) OptsFn {
+	switch l := l.(type) {
 	case *slog.Logger:
 		return func(m *mw) {
-			l := logger.With("group", name)
 			l.Debug("slog.Logger detected for HTTP")
 			m.logger = l
 		}
 	case slog.Logger:
 		return func(m *mw) {
-			l := logger.With("group", name)
 			l.Debug("slog.Logger detected for HTTP")
 			m.logger = &l
 		}
+	default:
+		panic("logger must be *slog.Logger")
+	}
+}
+
+func WithNamedLogger(l any, name string) OptsFn {
+	switch l := l.(type) {
+	case *slog.Logger:
+		return WithLogger(l.WithGroup(name))
+	case slog.Logger:
+		return WithLogger(l.WithGroup(name))
 	default:
 		panic("logger must be *slog.Logger")
 	}
