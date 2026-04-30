@@ -20,7 +20,7 @@ func (m IntBinder) guard(a any) bool {
 
 func (m IntBinder) Mappable(a any) bool {
 	switch a.(type) {
-	case int, *int, []int, *[]int:
+	case *int, *[]int:
 		return true
 	default:
 		return false

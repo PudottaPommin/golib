@@ -20,7 +20,7 @@ func (m Float64Binder) guard(a any) bool {
 
 func (m Float64Binder) Mappable(a any) bool {
 	switch a.(type) {
-	case float64, *float64, []float64, *[]float64:
+	case *float64, *[]float64:
 		return true
 	default:
 		return false

@@ -20,7 +20,7 @@ func (m Uint8Binder) guard(a any) bool {
 
 func (m Uint8Binder) Mappable(a any) bool {
 	switch a.(type) {
-	case uint8, *uint8, []uint8, *[]uint8:
+	case *uint8, *[]uint8:
 		return true
 	default:
 		return false

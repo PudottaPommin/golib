@@ -15,7 +15,7 @@ func (m StringBinder) guard(a any) bool {
 
 func (m StringBinder) Mappable(a any) bool {
 	switch a.(type) {
-	case string, *string, []string, *[]string:
+	case *string, *[]string:
 		return true
 	default:
 		return false

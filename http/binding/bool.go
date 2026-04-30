@@ -20,7 +20,7 @@ func (m BoolBinder) guard(a any) bool {
 
 func (m BoolBinder) Mappable(a any) bool {
 	switch a.(type) {
-	case bool, *bool, []bool, *[]bool:
+	case *bool, *[]bool:
 		return true
 	default:
 		return false

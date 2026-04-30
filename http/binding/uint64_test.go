@@ -12,9 +12,9 @@ func TestUint64Binder_Mappable(t *testing.T) {
 		dest     any
 		expected bool
 	}{
-		{uint64(0), true},
+		{uint64(0), false},
 		{new(uint64), true},
-		{[]uint64{}, true},
+		{[]uint64{}, false},
 		{new([]uint64), true},
 		{int(1), false},
 		{nil, false},
@@ -39,7 +39,7 @@ func TestUint64Binder_Bind(t *testing.T) {
 		var dst int
 		err := m.Bind("12345", &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "destination is not mappable", err.Error())
+		assert.Equal(t, "invalid destination type for binder", err.Error())
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestUint64Binder_BindMany(t *testing.T) {
 		var dst []int
 		err := m.BindMany([]string{"1", "2"}, &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "destination is not mappable", err.Error())
+		assert.Equal(t, "invalid destination type for binder", err.Error())
 	})
 }
 

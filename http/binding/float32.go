@@ -20,7 +20,7 @@ func (m Float32Binder) guard(a any) bool {
 
 func (m Float32Binder) Mappable(a any) bool {
 	switch a.(type) {
-	case float32, *float32, []float32, *[]float32:
+	case *float32, *[]float32:
 		return true
 	default:
 		return false

@@ -20,7 +20,7 @@ func (m Int32Binder) guard(a any) bool {
 
 func (m Int32Binder) Mappable(a any) bool {
 	switch a.(type) {
-	case int32, *int32, []int32, *[]int32:
+	case *int32, *[]int32:
 		return true
 	default:
 		return false
