@@ -19,6 +19,8 @@ var (
 	ErrVerificationFailed  = errors.New("mac verification failed")
 )
 
+const httpCookieSizeLimit = 4096
+
 type Cookie struct {
 	encoder    Encoder
 	encryptor  Encryptor
@@ -30,22 +32,23 @@ type Cookie struct {
 	minAge    int64
 }
 
-func New(hashKey, blockKey []byte, options ...OptFn) (sc *Cookie, err error) {
-	sc = &Cookie{
+func New(hashKey, blockKey []byte, options ...OptFn) (*Cookie, error) {
+	sc := &Cookie{
 		mac:        &hasher{key: hashKey},
 		encoder:    &JSONEncoder{},
 		urlEncoder: &Base64Encoder{},
-		maxLength:  4096,
+		maxLength:  httpCookieSizeLimit,
 	}
 	for _, opt := range options {
 		opt(sc)
 	}
 	if sc.encryptor == nil && blockKey != nil {
+		var err error
 		if sc.encryptor, err = NewDefaultEncryptor(blockKey); err != nil {
-			return
+			return nil, err
 		}
 	}
-	return
+	return sc, nil
 }
 
 // Binary format:
@@ -69,7 +72,7 @@ func (sc *Cookie) Secure(name string, value any) ([]byte, error) {
 	}
 
 	ts := sc.timestamp()
-	
+
 	// Create payload for signing
 	// We sign: name + ts(8) + value
 	sigBuf := make([]byte, len(name)+8+len(buf))
@@ -82,7 +85,7 @@ func (sc *Cookie) Secure(name string, value any) ([]byte, error) {
 		return nil, fmt.Errorf("[Cookie] failed to Secure: %w", err)
 	}
 
-	// Final binary blob: [ts:8][vlen:4][val:N][mac:M]
+	// Final binary blob: [ts:8][bufLen:4][val:N][mac:M]
 	final := make([]byte, 8+4+len(buf)+len(h))
 	binary.BigEndian.PutUint64(final[0:], uint64(ts))
 	binary.BigEndian.PutUint32(final[8:], uint32(len(buf)))
@@ -114,19 +117,19 @@ func (sc *Cookie) Decrypt(name, value string, dst any) error {
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", err)
 	}
 
-	if len(buf) < 12 {
+	if len(buf) < 12 { //nolint:mnd // we need at least 12 bytes for timestamp and value length
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrCookieTooShort)
 	}
 
 	ts := int64(binary.BigEndian.Uint64(buf[0:8]))
-	vlen := int(binary.BigEndian.Uint32(buf[8:12]))
+	bufLen := int(binary.BigEndian.Uint32(buf[8:12]))
 
-	if len(buf) < 12+vlen {
+	if len(buf) < 12+bufLen {
 		return fmt.Errorf("[Cookie] failed to Decrypt: %w", ErrValueLengthMismatch)
 	}
 
-	val := buf[12 : 12+vlen]
-	mac := buf[12+vlen:]
+	val := buf[12 : 12+bufLen]
+	mac := buf[12+bufLen:]
 
 	// Verify MAC
 	// We sign: name + ts(8) + value

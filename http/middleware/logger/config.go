@@ -19,6 +19,80 @@ type (
 	}
 )
 
+var statusCodeToLogLevel = map[int]slog.Level{
+	// 1xx Informational
+	http.StatusContinue:           slog.LevelDebug,
+	http.StatusSwitchingProtocols: slog.LevelDebug,
+	http.StatusProcessing:         slog.LevelDebug,
+	http.StatusEarlyHints:         slog.LevelDebug,
+
+	// 2xx Success
+	http.StatusOK:                   slog.LevelInfo,
+	http.StatusCreated:              slog.LevelInfo,
+	http.StatusAccepted:             slog.LevelInfo,
+	http.StatusNonAuthoritativeInfo: slog.LevelInfo,
+	http.StatusNoContent:            slog.LevelInfo,
+	http.StatusResetContent:         slog.LevelInfo,
+	http.StatusPartialContent:       slog.LevelInfo,
+	http.StatusMultiStatus:          slog.LevelInfo,
+	http.StatusAlreadyReported:      slog.LevelInfo,
+	http.StatusIMUsed:               slog.LevelInfo,
+
+	// 3xx Redirection
+	http.StatusMultipleChoices:   slog.LevelInfo,
+	http.StatusMovedPermanently:  slog.LevelInfo,
+	http.StatusFound:             slog.LevelInfo,
+	http.StatusSeeOther:          slog.LevelInfo,
+	http.StatusNotModified:       slog.LevelDebug,
+	http.StatusUseProxy:          slog.LevelInfo,
+	http.StatusTemporaryRedirect: slog.LevelInfo,
+	http.StatusPermanentRedirect: slog.LevelInfo,
+
+	// 4xx Client Error
+	http.StatusBadRequest:                   slog.LevelWarn,
+	http.StatusUnauthorized:                 slog.LevelWarn,
+	http.StatusPaymentRequired:              slog.LevelWarn,
+	http.StatusForbidden:                    slog.LevelWarn,
+	http.StatusNotFound:                     slog.LevelWarn,
+	http.StatusMethodNotAllowed:             slog.LevelWarn,
+	http.StatusNotAcceptable:                slog.LevelWarn,
+	http.StatusProxyAuthRequired:            slog.LevelWarn,
+	http.StatusRequestTimeout:               slog.LevelWarn,
+	http.StatusConflict:                     slog.LevelWarn,
+	http.StatusGone:                         slog.LevelWarn,
+	http.StatusLengthRequired:               slog.LevelWarn,
+	http.StatusPreconditionFailed:           slog.LevelWarn,
+	http.StatusRequestEntityTooLarge:        slog.LevelWarn,
+	http.StatusRequestURITooLong:            slog.LevelWarn,
+	http.StatusUnsupportedMediaType:         slog.LevelWarn,
+	http.StatusRequestedRangeNotSatisfiable: slog.LevelWarn,
+	http.StatusExpectationFailed:            slog.LevelWarn,
+	http.StatusTeapot:                       slog.LevelWarn,
+	http.StatusMisdirectedRequest:           slog.LevelWarn,
+	http.StatusUnprocessableEntity:          slog.LevelWarn,
+	http.StatusLocked:                       slog.LevelWarn,
+	http.StatusFailedDependency:             slog.LevelWarn,
+	http.StatusTooEarly:                     slog.LevelWarn,
+	http.StatusUpgradeRequired:              slog.LevelWarn,
+	http.StatusPreconditionRequired:         slog.LevelWarn,
+	http.StatusTooManyRequests:              slog.LevelWarn,
+	http.StatusRequestHeaderFieldsTooLarge:  slog.LevelWarn,
+	http.StatusUnavailableForLegalReasons:   slog.LevelWarn,
+
+	// 5xx Server Error
+	http.StatusInternalServerError:           slog.LevelError,
+	http.StatusNotImplemented:                slog.LevelError,
+	http.StatusBadGateway:                    slog.LevelError,
+	http.StatusServiceUnavailable:            slog.LevelError,
+	http.StatusGatewayTimeout:                slog.LevelError,
+	http.StatusHTTPVersionNotSupported:       slog.LevelError,
+	http.StatusVariantAlsoNegotiates:         slog.LevelError,
+	http.StatusInsufficientStorage:           slog.LevelError,
+	http.StatusLoopDetected:                  slog.LevelError,
+	http.StatusNotExtended:                   slog.LevelError,
+	http.StatusNetworkAuthenticationRequired: slog.LevelError,
+}
+
 func New(opts ...OptsFn) (m *mw) {
 	m = new(mw)
 	for i := range opts {

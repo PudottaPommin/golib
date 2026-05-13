@@ -70,6 +70,8 @@ type fieldInfo struct {
 	index    int
 	name     string
 	required bool
+	// marks field as trimmable (mainly for strings)
+	trim bool
 }
 
 type structMetadata struct {
@@ -164,6 +166,11 @@ func (fb *FormBinder) Bind(r *http.Request, dst any) error {
 				return fmt.Errorf("missing required field %q", f.name)
 			}
 		}
+		if f.trim {
+			for i, v := range values {
+				values[i] = strings.TrimSpace(v)
+			}
+		}
 
 		if !ok || len(values) == 0 {
 			continue
@@ -222,15 +229,20 @@ func parseStructMetadata(rt reflect.Type) *structMetadata {
 		parts := strings.Split(tag, ",")
 		name := strings.TrimSpace(parts[0])
 		required := false
+		trim := false
 		for _, part := range parts[1:] {
-			if strings.TrimSpace(part) == "required" {
+			part := strings.TrimSpace(part)
+			if part == "required" {
 				required = true
+			} else if part == "trim" {
+				trim = true
 			}
 		}
 		meta.fields = append(meta.fields, fieldInfo{
 			index:    i,
 			name:     name,
 			required: required,
+			trim:     trim,
 		})
 	}
 	return meta

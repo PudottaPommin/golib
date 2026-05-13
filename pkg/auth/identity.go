@@ -5,7 +5,6 @@ import (
 )
 
 type (
-	key      string
 	Identity interface {
 		ID() uuid.UUID
 		Username() string
@@ -17,8 +16,6 @@ type (
 )
 
 var _ Identity = (*identity)(nil)
-
-const identityContextKey key = "auth/identity"
 
 func NewIdentity(cv *CookieValue) (Identity, error) {
 	return &identity{id: cv.ID, username: cv.Username}, nil

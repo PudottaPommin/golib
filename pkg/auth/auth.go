@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+var (
+	ErrSecurityStampNotMatching = errors.New("auth: Security stamp doesn't match")
+	ErrKeyNotVerified           = errors.New("auth: Unable to verify auth token")
+	ErrorIdentityNotFound       = errors.New("auth: No identity found for requested ID")
+	ErrorSecurityStampsDiffer   = errors.New("auth: Security stamps don't match")
+)
+
 type (
 	OptFn  func(*Config)
 	Config struct {
@@ -34,13 +41,6 @@ func NewConfig(opts ...OptFn) *Config {
 
 	return cfg
 }
-
-var (
-	ErrSecurityStampNotMatching = errors.New("auth: Security stamp doesn't match")
-	ErrKeyNotVerified           = errors.New("auth: Unable to verify auth token")
-	ErrorIdentityNotFound       = errors.New("auth: No identity found for requested ID")
-	ErrorSecurityStampsDiffer   = errors.New("auth: Security stamps don't match")
-)
 
 func (c *Config) SigningKey() *ecdsa.PrivateKey {
 	return c.signingKey
@@ -78,35 +78,36 @@ func ValidateSecurityStamp(a, b []byte) bool {
 	return slices.Equal(a, b)
 }
 
-func encodeAuthToken(key *ecdsa.PrivateKey, cv *CookieValue) (token string, err error) {
+func encodeAuthToken(key *ecdsa.PrivateKey, cv *CookieValue) (string, error) {
 	signedBytes, err := key.Sign(rand.Reader, cv.Digest(), nil)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	cv.Signature = signedBytes
 
 	jsonBytes, err := json.Marshal(cv)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	return base64.StdEncoding.EncodeToString(jsonBytes), nil
 }
 
-func decodeAuthToken(key *ecdsa.PrivateKey, s string) (cv *CookieValue, err error) {
+func decodeAuthToken(key *ecdsa.PrivateKey, s string) (*CookieValue, error) {
 	decoded, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
-		return
+		return nil, err
 	}
 
+	cv := new(CookieValue)
 	if err = json.Unmarshal(decoded, &cv); err != nil {
-		return
+		return nil, err
 	}
 
 	if !ecdsa.VerifyASN1(&key.PublicKey, cv.Digest(), cv.Signature) {
 		return cv, ErrKeyNotVerified
 	}
 
-	return
+	return cv, nil
 }
