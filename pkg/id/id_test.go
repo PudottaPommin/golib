@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"sync"
 	"testing"
-
-	"github.com/gofrs/uuid/v5"
+	"uuid"
 )
 
 func TestID(t *testing.T) {
@@ -53,9 +52,9 @@ func BenchmarkID(b *testing.B) {
 		// 	}
 		// })
 	})
-	b.Run("Gofrs/UUIDv7", func(b *testing.B) {
+	b.Run("uuid", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			_, _ = uuid.NewV7()
+			_ = uuid.NewV7()
 		}
 		// b.RunParallel(func(pb *testing.PB) {
 		// 	for pb.Next() {

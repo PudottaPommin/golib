@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	//nolint:revive // dot-import lets calls read as if same-package; testpackage requires package principal_test
 	. "github.com/pudottapommin/golib/http/middleware/principal"
 	principalpkg "github.com/pudottapommin/golib/pkg/principal"
@@ -38,7 +38,7 @@ func TestAuthorization_WithIdentity_DefaultAllows(t *testing.T) {
 	t.Parallel()
 
 	mw := NewAuthorization[string]()
-	user := principalpkg.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := principalpkg.NewUser(uuid.NewV4().String(), "alice", nil)
 
 	var reached bool
 	rec := httptest.NewRecorder()
@@ -54,7 +54,7 @@ func TestAuthorization_PredicateFalse(t *testing.T) {
 	mw := NewAuthorization[string](WithAuthorize(func(principalpkg.Identity[string]) bool {
 		return false
 	}))
-	user := principalpkg.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := principalpkg.NewUser(uuid.NewV4().String(), "alice", nil)
 
 	var reached bool
 	rec := httptest.NewRecorder()
@@ -70,7 +70,7 @@ func TestAuthorization_PredicateTrue(t *testing.T) {
 	mw := NewAuthorization[string](WithAuthorize(func(principalpkg.Identity[string]) bool {
 		return true
 	}))
-	user := principalpkg.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := principalpkg.NewUser(uuid.NewV4().String(), "alice", nil)
 
 	var reached bool
 	rec := httptest.NewRecorder()

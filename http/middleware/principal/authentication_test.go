@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	gcookie "github.com/pudottapommin/golib/http/cookie"
 
 	//nolint:revive // dot-import lets calls read as if same-package; testpackage requires package principal_test
@@ -44,7 +44,7 @@ func terminalHandler(reached *bool) http.Handler {
 func TestAuthentication_Success(t *testing.T) {
 	t.Parallel()
 
-	user := principalpkg.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := principalpkg.NewUser(uuid.NewV4().String(), "alice", nil)
 	mw := NewAuthentication(&fakeAuthService[string]{identity: user, err: nil})
 
 	var (
@@ -180,7 +180,7 @@ func TestAuthentication_EndToEnd_CookieStore(t *testing.T) {
 
 	mw := NewAuthentication(principalpkg.NewService(store), WithRevoker[string](store))
 
-	want := principalpkg.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp-1"))
+	want := principalpkg.NewUser(uuid.NewV4().String(), "alice", []byte("stamp-1"))
 	storeRec := httptest.NewRecorder()
 	require.NoError(t, store.Store(storeRec, httptest.NewRequest(http.MethodGet, "/", nil), want))
 	setCookie := storeRec.Result().Cookies()

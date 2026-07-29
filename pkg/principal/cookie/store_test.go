@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	gcookie "github.com/pudottapommin/golib/http/cookie"
 	"github.com/pudottapommin/golib/pkg/principal"
 
@@ -67,7 +67,7 @@ func TestCookieStore_RoundTrip(t *testing.T) {
 	store, err := NewCookieStore[string](testCookieName, hashKey, blockKey)
 	require.NoError(t, err)
 
-	want := principal.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp-1"))
+	want := principal.NewUser(uuid.NewV4().String(), "alice", []byte("stamp-1"))
 	setCookie := storeIdentity(t, store, want)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -101,7 +101,7 @@ func TestCookieStore_Resolve_Tampered(t *testing.T) {
 	store, err := NewCookieStore[string](testCookieName, hashKey, blockKey)
 	require.NoError(t, err)
 
-	user := principal.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp-1"))
+	user := principal.NewUser(uuid.NewV4().String(), "alice", []byte("stamp-1"))
 	setCookie := storeIdentity(t, store, user)
 
 	tampered := []byte(setCookie.Value)
@@ -124,7 +124,7 @@ func TestCookieStore_Resolve_Expired(t *testing.T) {
 	store, err := NewCookieStore[string](testCookieName, hashKey, blockKey, gcookie.WithMaxAge(1))
 	require.NoError(t, err)
 
-	user := principal.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp-1"))
+	user := principal.NewUser(uuid.NewV4().String(), "alice", []byte("stamp-1"))
 	setCookie := storeIdentity(t, store, user)
 
 	time.Sleep(2 * time.Second)
@@ -170,7 +170,7 @@ func TestCookieStore_CustomCookieAttributes(t *testing.T) {
 		WithCookieHTTPOnly(false).
 		WithCookieSecure(false)
 
-	user := principal.NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp-1"))
+	user := principal.NewUser(uuid.NewV4().String(), "alice", []byte("stamp-1"))
 	setCookie := storeIdentity(t, store, user)
 
 	assert.Equal(t, "/account", setCookie.Path)

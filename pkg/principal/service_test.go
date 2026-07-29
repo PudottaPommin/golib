@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"uuid"
 
-	"github.com/gofrs/uuid/v5"
 	//nolint:revive // dot-import lets calls read as if same-package; testpackage requires package principal_test
 	. "github.com/pudottapommin/golib/pkg/principal"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ func TestService_Authenticate_ResolverError(t *testing.T) {
 func TestService_Authenticate_NoValidator(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("stamp"))
 	svc := NewService(&fakeResolver{identity: user, err: nil})
 
 	identity, err := svc.Authenticate(httptest.NewRequest(http.MethodGet, "/", nil))
@@ -50,7 +50,7 @@ func TestService_Authenticate_NoValidator(t *testing.T) {
 func TestService_Authenticate_ValidatorRejects(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("stamp"))
 	svc := NewService(
 		&fakeResolver{identity: user, err: nil},
 		WithValidator[string](ValidatorFunc[string](func(_ context.Context, _ Identity[string]) error {
@@ -67,7 +67,7 @@ func TestService_Authenticate_ValidatorRejects(t *testing.T) {
 func TestService_Authenticate_ValidatorAccepts(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("stamp"))
 	svc := NewService(
 		&fakeResolver{identity: user, err: nil},
 		WithValidator[string](ValidatorFunc[string](func(_ context.Context, _ Identity[string]) error {
@@ -84,7 +84,7 @@ func TestService_Authenticate_ValidatorAccepts(t *testing.T) {
 func TestSecurityStampValidator_Match(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("current-stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("current-stamp"))
 	validator := SecurityStampValidator[string](func(_ context.Context, _ string) ([]byte, error) {
 		return []byte("current-stamp"), nil
 	})
@@ -97,7 +97,7 @@ func TestSecurityStampValidator_Match(t *testing.T) {
 func TestSecurityStampValidator_Mismatch(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("old-stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("old-stamp"))
 	validator := SecurityStampValidator[string](func(_ context.Context, _ string) ([]byte, error) {
 		return []byte("current-stamp"), nil
 	})
@@ -111,7 +111,7 @@ func TestSecurityStampValidator_LookupError(t *testing.T) {
 	t.Parallel()
 
 	wantErr := errors.New("lookup failed")
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("stamp"))
 	validator := SecurityStampValidator[string](func(_ context.Context, _ string) ([]byte, error) {
 		return nil, wantErr
 	})
@@ -124,7 +124,7 @@ func TestSecurityStampValidator_LookupError(t *testing.T) {
 func TestSecurityStampValidator_BothEmpty_FailsClosed(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := NewUser(uuid.NewV4().String(), "alice", nil)
 	validator := SecurityStampValidator(func(_ context.Context, _ string) ([]byte, error) {
 		return nil, nil
 	})
@@ -137,7 +137,7 @@ func TestSecurityStampValidator_BothEmpty_FailsClosed(t *testing.T) {
 func TestSecurityStampValidator_LookupEmpty_FailsClosed(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", []byte("stamp"))
+	user := NewUser(uuid.NewV4().String(), "alice", []byte("stamp"))
 	validator := SecurityStampValidator(func(_ context.Context, _ string) ([]byte, error) {
 		return nil, nil
 	})
@@ -150,7 +150,7 @@ func TestSecurityStampValidator_LookupEmpty_FailsClosed(t *testing.T) {
 func TestSecurityStampValidator_IdentityEmpty_FailsClosed(t *testing.T) {
 	t.Parallel()
 
-	user := NewUser(uuid.Must(uuid.NewV4()).String(), "alice", nil)
+	user := NewUser(uuid.NewV4().String(), "alice", nil)
 	validator := SecurityStampValidator(func(_ context.Context, _ string) ([]byte, error) {
 		return []byte("current-stamp"), nil
 	})
