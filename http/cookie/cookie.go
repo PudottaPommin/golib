@@ -168,6 +168,10 @@ func (sc *Cookie) timestamp() int64 {
 	return time.Now().UTC().Unix()
 }
 
+func (sc *Cookie) MaxAge() int64 {
+	return sc.maxAge
+}
+
 func GenerateRandomKey(length int) []byte {
 	key := make([]byte, length)
 	_, _ = rand.Read(key)

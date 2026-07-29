@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/go-chi/chi/v5 v5.3.1
-	github.com/gofrs/uuid/v5 v5.4.0
+	github.com/gofrs/uuid/v5 v5.5.0
 	github.com/klauspost/compress v1.19.1
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/bytebufferpool v1.0.0
