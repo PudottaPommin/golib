@@ -29,21 +29,21 @@ func (m BoolBinder) Mappable(a any) bool {
 
 func (m BoolBinder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*bool))
 }
 
 func (m BoolBinder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]bool))
 }
 
 func (m BoolBinder) BindT(src string, dst *bool) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	v, err := strconv.ParseBool(src)
 	if err != nil {
@@ -55,7 +55,7 @@ func (m BoolBinder) BindT(src string, dst *bool) error {
 
 func (m BoolBinder) BindManyT(src []string, dst *[]bool) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]bool, len(src))
 	for idx, v := range src {

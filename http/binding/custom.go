@@ -21,28 +21,28 @@ func (m CustomBinder[T, PT]) Mappable(a any) bool {
 
 func (m CustomBinder[T, PT]) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*T))
 }
 
 func (m CustomBinder[T, PT]) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]T))
 }
 
 func (m CustomBinder[T, PT]) BindT(src string, dst *T) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	return PT(dst).UnmarshalBind(src)
 }
 
 func (m CustomBinder[T, PT]) BindManyT(src []string, dst *[]T) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]T, len(src))
 	for i, v := range src {

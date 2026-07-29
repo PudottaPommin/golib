@@ -39,13 +39,13 @@ func TestUint64Binder_Bind(t *testing.T) {
 		var dst int
 		err := m.Bind("12345", &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
 		err := m.Bind("12345", (*uint64)(nil))
 		assert.Error(t, err)
-		assert.Equal(t, "destination cannot be nil", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationNil)
 	})
 }
 
@@ -63,7 +63,7 @@ func TestUint64Binder_BindMany(t *testing.T) {
 		var dst []int
 		err := m.BindMany([]string{"1", "2"}, &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 }
 
@@ -111,7 +111,14 @@ func TestUint64Binder_BindManyT(t *testing.T) {
 	}{
 		{"Success", []string{"1", "2"}, new([]uint64), false, "", []uint64{1, 2}},
 		{"Parse Error", []string{"1", "abc"}, new([]uint64), true, "failed to bind value to uint64", nil},
-		{"Overflow Error", []string{"1", "18446744073709551616"}, new([]uint64), true, "failed to bind value to uint64", nil},
+		{
+			"Overflow Error",
+			[]string{"1", "18446744073709551616"},
+			new([]uint64),
+			true,
+			"failed to bind value to uint64",
+			nil,
+		},
 		{"Nil Destination", []string{"1"}, nil, true, "destination cannot be nil", nil},
 	}
 

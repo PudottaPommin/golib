@@ -29,21 +29,24 @@ func (m Uint8Binder) Mappable(a any) bool {
 
 func (m Uint8Binder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*uint8))
 }
 
 func (m Uint8Binder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]uint8))
 }
 
 func (m Uint8Binder) BindT(src string, dst *uint8) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
+	}
+	if src == "" {
+		return ErrValueIsZero
 	}
 	v, err := strconv.ParseUint(src, 10, 8)
 	if err != nil {
@@ -55,7 +58,7 @@ func (m Uint8Binder) BindT(src string, dst *uint8) error {
 
 func (m Uint8Binder) BindManyT(src []string, dst *[]uint8) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]uint8, len(src))
 	for idx, v := range src {

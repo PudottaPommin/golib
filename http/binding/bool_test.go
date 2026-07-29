@@ -12,7 +12,7 @@ func TestBoolBinder_Mappable(t *testing.T) {
 		dest     any
 		expected bool
 	}{
-		{bool(true), false},
+		{true, false},
 		{new(bool), true},
 		{[]bool{}, false},
 		{new([]bool), true},
@@ -39,13 +39,13 @@ func TestBoolBinder_Bind(t *testing.T) {
 		var dst int
 		err := m.Bind("true", &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
 		err := m.Bind("true", (*bool)(nil))
 		assert.Error(t, err)
-		assert.Equal(t, "destination cannot be nil", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationNil)
 	})
 }
 
@@ -63,7 +63,7 @@ func TestBoolBinder_BindMany(t *testing.T) {
 		var dst []int
 		err := m.BindMany([]string{"true", "false"}, &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 }
 

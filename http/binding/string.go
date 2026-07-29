@@ -24,21 +24,21 @@ func (m StringBinder) Mappable(a any) bool {
 
 func (m StringBinder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*string))
 }
 
 func (m StringBinder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]string))
 }
 
 func (m StringBinder) BindT(src string, dst *string) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	*dst = src
 	return nil
@@ -46,7 +46,7 @@ func (m StringBinder) BindT(src string, dst *string) error {
 
 func (m StringBinder) BindManyT(src []string, dst *[]string) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	*dst = src
 	return nil

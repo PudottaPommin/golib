@@ -29,21 +29,24 @@ func (m Uint32Binder) Mappable(a any) bool {
 
 func (m Uint32Binder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*uint32))
 }
 
 func (m Uint32Binder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]uint32))
 }
 
 func (m Uint32Binder) BindT(src string, dst *uint32) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
+	}
+	if src == "" {
+		return ErrValueIsZero
 	}
 	v, err := strconv.ParseUint(src, 10, 32)
 	if err != nil {
@@ -55,7 +58,7 @@ func (m Uint32Binder) BindT(src string, dst *uint32) error {
 
 func (m Uint32Binder) BindManyT(src []string, dst *[]uint32) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]uint32, len(src))
 	for idx, v := range src {

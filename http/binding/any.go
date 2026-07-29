@@ -13,52 +13,52 @@ func (m AnyBinder) Mappable(a any) bool {
 		return false
 	}
 	t := reflect.TypeOf(a)
-	if t.Kind() != reflect.Ptr {
+	if t.Kind() != reflect.Pointer {
 		return false
 	}
 
 	et := t.Elem()
 	if et.Kind() == reflect.Slice {
-		return reflect.PointerTo(et.Elem()).Implements(reflect.TypeOf((*BindUnmarshaler)(nil)).Elem())
+		return reflect.PointerTo(et.Elem()).Implements(reflect.TypeFor[BindUnmarshaler]())
 	}
 
-	return t.Implements(reflect.TypeOf((*BindUnmarshaler)(nil)).Elem())
+	return t.Implements(reflect.TypeFor[BindUnmarshaler]())
 }
 
 func (m AnyBinder) Bind(src string, dst any) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	bu, ok := dst.(BindUnmarshaler)
 	if !ok {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return bu.UnmarshalBind(src)
 }
 
 func (m AnyBinder) BindMany(src []string, dst any) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 
 	rv := reflect.ValueOf(dst)
-	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Slice {
-		return ErrorDestinationTypeInvalid
+	if rv.Kind() != reflect.Pointer || rv.Elem().Kind() != reflect.Slice {
+		return ErrDestinationTypeInvalid
 	}
 
 	slice := rv.Elem()
 	elemType := slice.Type().Elem()
 	ptrElemType := reflect.PointerTo(elemType)
 
-	if !ptrElemType.Implements(reflect.TypeOf((*BindUnmarshaler)(nil)).Elem()) {
-		return ErrorDestinationTypeInvalid
+	if !ptrElemType.Implements(reflect.TypeFor[BindUnmarshaler]()) {
+		return ErrDestinationTypeInvalid
 	}
 
 	newSlice := reflect.MakeSlice(slice.Type(), len(src), len(src))
 	for i, v := range src {
 		elem := newSlice.Index(i)
 		var bu BindUnmarshaler
-		if elem.Kind() == reflect.Ptr {
+		if elem.Kind() == reflect.Pointer {
 			if elem.IsNil() {
 				elem.Set(reflect.New(elem.Type().Elem()))
 			}

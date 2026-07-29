@@ -27,8 +27,9 @@ type (
 )
 
 var (
-	ErrorDestinationTypeInvalid = errors.New("invalid destination type for binder")
-	ErrorDestinationNil         = errors.New("destination cannot be nil")
+	ErrDestinationTypeInvalid = errors.New("binder: invalid destination type for binder")
+	ErrDestinationNil         = errors.New("binder: destination cannot be nil")
+	ErrValueIsZero            = errors.New("binder: value is zero")
 )
 
 var (
@@ -78,9 +79,7 @@ type structMetadata struct {
 	fields []fieldInfo
 }
 
-var (
-	metadataCache sync.Map // map[reflect.Type]*structMetadata
-)
+var metadataCache sync.Map // map[reflect.Type]*structMetadata
 
 type (
 	FormBinderOptsFn func(binder *FormBinder)
@@ -96,6 +95,7 @@ func FormWithBinders(binders ...Binder) FormBinderOptsFn {
 		b.AddBinder(binders...)
 	}
 }
+
 func FormSkipDefaultBinders(skipDefaults bool) FormBinderOptsFn {
 	return func(b *FormBinder) {
 		b.skipDefaults = skipDefaults
@@ -121,21 +121,21 @@ func (fb *FormBinder) AddBinder(b ...Binder) *FormBinder {
 	return fb
 }
 
-// Bind maps form or multipart form values from an http.Request to a destination struct pointer.
+// Bind maps form or multipart form values from an [http.Request] to a destination struct pointer.
 // The destination must be a pointer to a struct; otherwise, an error is returned.
 // Fields in the destination struct must be annotated with `form` tags for binding.
 // Required fields are validated based on the `required` attribute in the tag.
 // Any parse or binding error encountered during this process is returned.
 func (fb *FormBinder) Bind(r *http.Request, dst any) error {
 	if r.Form == nil {
-		const maxFormSize = 32 << 20 //32 MB
+		const maxFormSize = 32 << 20 // 32 MB
 		if err := r.ParseMultipartForm(maxFormSize); err != nil {
 			return err
 		}
 	}
 
 	rv := reflect.ValueOf(dst)
-	if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+	if rv.Kind() != reflect.Pointer || rv.Elem().Kind() != reflect.Struct {
 		return errors.New("dst must be a pointer to a struct")
 	}
 
@@ -182,6 +182,9 @@ func (fb *FormBinder) Bind(r *http.Request, dst any) error {
 		}
 
 		if err := fb.bindField(fieldVal, values); err != nil {
+			if errors.Is(err, ErrValueIsZero) {
+				continue
+			}
 			return err
 		}
 	}
@@ -231,7 +234,7 @@ func parseStructMetadata(rt reflect.Type) *structMetadata {
 		required := false
 		trim := false
 		for _, part := range parts[1:] {
-			part := strings.TrimSpace(part)
+			part = strings.TrimSpace(part)
 			if part == "required" {
 				required = true
 			} else if part == "trim" {

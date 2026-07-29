@@ -11,11 +11,11 @@ import (
 const argon2idOffset = 17
 
 type argon2idHasher struct {
-	time     uint32
 	saltSize int
+	time     uint32
 	memory   uint32
-	threads  uint8
 	keyLen   uint32
+	threads  uint8
 }
 
 func NewArgon2id() Hasher {

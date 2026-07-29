@@ -39,13 +39,13 @@ func TestUint8Binder_Bind(t *testing.T) {
 		var dst int
 		err := m.Bind("123", &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
 		err := m.Bind("123", (*uint8)(nil))
 		assert.Error(t, err)
-		assert.Equal(t, "destination cannot be nil", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationNil)
 	})
 }
 
@@ -63,7 +63,7 @@ func TestUint8Binder_BindMany(t *testing.T) {
 		var dst []int
 		err := m.BindMany([]string{"1", "2"}, &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 }
 

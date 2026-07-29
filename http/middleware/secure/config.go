@@ -31,13 +31,6 @@ type (
 		//
 		// Optional, Default: ""
 		ContentSecurityPolicy string
-		// CSPReportOnly would use the `Content-Security-Policy-Report-Only` header instead
-		// of the `Content-Security-Policy` header. This allows iterative updates of the
-		// content security policy by only reporting the violations that would
-		// have occurred instead of blocking the resource.
-		//
-		// Optional, Default: false
-		CSPReportOnly bool
 		// ReferrerPolicy sets the `Referrer-Policy` header providing security against
 		// leaking potentially sensitive request paths to third parties.
 		//
@@ -50,6 +43,13 @@ type (
 		//
 		// Optional, Default: 0
 		HSTSMaxAge int
+		// CSPReportOnly would use the `Content-Security-Policy-Report-Only` header instead
+		// of the `Content-Security-Policy` header. This allows iterative updates of the
+		// content security policy by only reporting the violations that would
+		// have occurred instead of blocking the resource.
+		//
+		// Optional, Default: false
+		CSPReportOnly bool
 		// HSTSExcludeSubdomains won't include subdomains tag in the `Strict Transport Security`
 		// header, excluding all subdomains from security policy. It has no effect
 		// unless HSTSMaxAge is set to a non-zero value.

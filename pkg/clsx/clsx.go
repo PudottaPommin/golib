@@ -10,10 +10,10 @@ type (
 	Map       map[string]Value
 	valueKind uint8
 	Value     struct {
-		kind valueKind
-		cls  string
-		b    bool
 		h    HandlerFn
+		cls  string
+		kind valueKind
+		b    bool
 	}
 )
 
@@ -65,9 +65,11 @@ func (m Map) String() string {
 func String(cls string) Value {
 	return Boolean(cls, true)
 }
+
 func Boolean(cls string, cond bool) Value {
 	return Value{kind: kindBoolean, cls: cls, b: cond}
 }
+
 func Handler(cls string, fn HandlerFn) Value {
 	return Value{kind: kindFn, cls: cls, h: fn}
 }

@@ -29,21 +29,24 @@ func (m Int64Binder) Mappable(a any) bool {
 
 func (m Int64Binder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*int64))
 }
 
 func (m Int64Binder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]int64))
 }
 
 func (m Int64Binder) BindT(src string, dst *int64) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
+	}
+	if src == "" {
+		return ErrValueIsZero
 	}
 	v, err := strconv.ParseInt(src, 10, 64)
 	if err != nil {
@@ -55,7 +58,7 @@ func (m Int64Binder) BindT(src string, dst *int64) error {
 
 func (m Int64Binder) BindManyT(src []string, dst *[]int64) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]int64, len(src))
 	for idx, v := range src {

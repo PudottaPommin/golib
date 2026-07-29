@@ -39,13 +39,13 @@ func TestIntBinder_Bind(t *testing.T) {
 		var dst int8
 		err := m.Bind("1234567", &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 
 	t.Run("NilPointer", func(t *testing.T) {
 		err := m.Bind("1234567", (*int)(nil))
 		assert.Error(t, err)
-		assert.Equal(t, "destination cannot be nil", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationNil)
 	})
 }
 
@@ -63,7 +63,7 @@ func TestIntBinder_BindMany(t *testing.T) {
 		var dst []int8
 		err := m.BindMany([]string{"1", "2"}, &dst)
 		assert.Error(t, err)
-		assert.Equal(t, "invalid destination type for binder", err.Error())
+		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
 }
 
@@ -112,7 +112,14 @@ func TestIntBinder_BindManyT(t *testing.T) {
 	}{
 		{"Success", []string{"1", "2"}, new([]int), false, "", []int{1, 2}},
 		{"Parse Error", []string{"1", "abc"}, new([]int), true, "failed to bind value to int", nil},
-		{"Overflow Error", []string{"1", "100000000000000000000"}, new([]int), true, "failed to bind value to int", nil},
+		{
+			"Overflow Error",
+			[]string{"1", "100000000000000000000"},
+			new([]int),
+			true,
+			"failed to bind value to int",
+			nil,
+		},
 		{"Nil Destination", []string{"1"}, nil, true, "destination cannot be nil", nil},
 	}
 

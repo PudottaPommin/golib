@@ -29,21 +29,21 @@ func (m Float64Binder) Mappable(a any) bool {
 
 func (m Float64Binder) Bind(src string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindT(src, dst.(*float64))
 }
 
 func (m Float64Binder) BindMany(src []string, dst any) error {
 	if !m.guard(dst) {
-		return ErrorDestinationTypeInvalid
+		return ErrDestinationTypeInvalid
 	}
 	return m.BindManyT(src, dst.(*[]float64))
 }
 
 func (m Float64Binder) BindT(src string, dst *float64) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	v, err := strconv.ParseFloat(src, 64)
 	if err != nil {
@@ -55,7 +55,7 @@ func (m Float64Binder) BindT(src string, dst *float64) error {
 
 func (m Float64Binder) BindManyT(src []string, dst *[]float64) error {
 	if dst == nil {
-		return ErrorDestinationNil
+		return ErrDestinationNil
 	}
 	arr := make([]float64, len(src))
 	for idx, v := range src {
