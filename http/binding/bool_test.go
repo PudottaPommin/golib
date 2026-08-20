@@ -1,13 +1,14 @@
-package binding
+package binding_test
 
 import (
 	"testing"
 
+	. "github.com/pudottapommin/golib/http/binding"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBoolBinder_Mappable(t *testing.T) {
-	m := BoolBinder{}
+	m := WrapBinder(BoolBinder{})
 	tests := []struct {
 		dest     any
 		expected bool
@@ -26,7 +27,7 @@ func TestBoolBinder_Mappable(t *testing.T) {
 }
 
 func TestBoolBinder_Bind(t *testing.T) {
-	m := BoolBinder{}
+	m := WrapBinder(BoolBinder{})
 
 	t.Run("Success", func(t *testing.T) {
 		var dst bool
@@ -50,7 +51,7 @@ func TestBoolBinder_Bind(t *testing.T) {
 }
 
 func TestBoolBinder_BindMany(t *testing.T) {
-	m := BoolBinder{}
+	m := WrapBinder(BoolBinder{})
 
 	t.Run("Success", func(t *testing.T) {
 		var dst []bool
@@ -86,7 +87,7 @@ func TestBoolBinder_BindT(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := m.BindT(tt.src, tt.dst)
+			err := m.Bind(tt.src, tt.dst)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -116,7 +117,7 @@ func TestBoolBinder_BindManyT(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := m.BindManyT(tt.src, tt.dst)
+			err := m.BindMany(tt.src, tt.dst)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

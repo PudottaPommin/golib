@@ -5,66 +5,51 @@ import (
 	"strconv"
 )
 
-var _ GenericBinder[bool] = (*BoolBinder)(nil)
+var _ Binder[bool] = (*BoolBinder)(nil)
 
-type BoolBinder struct{}
+// BoolGenericBinder binds string inputs to boolean types (including custom ~bool types).
+type BoolGenericBinder[T ~bool] struct{}
 
-func (m BoolBinder) guard(a any) bool {
-	switch a.(type) {
-	case *bool, *[]bool:
-		return true
-	default:
-		return false
-	}
-}
-
-func (m BoolBinder) Mappable(a any) bool {
-	switch a.(type) {
-	case *bool, *[]bool:
-		return true
-	default:
-		return false
-	}
-}
-
-func (m BoolBinder) Bind(src string, dst any) error {
-	if !m.guard(dst) {
-		return ErrDestinationTypeInvalid
-	}
-	return m.BindT(src, dst.(*bool))
-}
-
-func (m BoolBinder) BindMany(src []string, dst any) error {
-	if !m.guard(dst) {
-		return ErrDestinationTypeInvalid
-	}
-	return m.BindManyT(src, dst.(*[]bool))
-}
-
-func (m BoolBinder) BindT(src string, dst *bool) error {
+func (m BoolGenericBinder[T]) Bind(s string, dst *T) error {
 	if dst == nil {
 		return ErrDestinationNil
 	}
-	v, err := strconv.ParseBool(src)
+	v, err := strconv.ParseBool(s)
 	if err != nil {
 		return errors.New("failed to bind value to bool")
 	}
-	*dst = v
+	*dst = T(v)
 	return nil
 }
 
-func (m BoolBinder) BindManyT(src []string, dst *[]bool) error {
+func (m BoolGenericBinder[T]) BindMany(s []string, dst *[]T) error {
 	if dst == nil {
 		return ErrDestinationNil
 	}
-	arr := make([]bool, len(src))
-	for idx, v := range src {
-		i, err := strconv.ParseBool(v)
+	if cap(*dst) < len(s) {
+		*dst = make([]T, len(s))
+	} else {
+		*dst = (*dst)[:len(s)]
+	}
+	for i, v := range s {
+		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return errors.New("failed to bind value to bool")
 		}
-		arr[idx] = i
+		(*dst)[i] = T(b)
 	}
-	*dst = arr
 	return nil
 }
+
+// BindT is provided for backward compatibility.
+func (m BoolGenericBinder[T]) BindT(src string, dst *T) error {
+	return m.Bind(src, dst)
+}
+
+// BindManyT is provided for backward compatibility.
+func (m BoolGenericBinder[T]) BindManyT(src []string, dst *[]T) error {
+	return m.BindMany(src, dst)
+}
+
+// BoolBinder is an alias for BoolGenericBinder[bool].
+type BoolBinder = BoolGenericBinder[bool]

@@ -1,11 +1,11 @@
-package binding
+package binding_test
 
 import (
 	"net/http"
 	"net/url"
-	"reflect"
-	"sync"
 	"testing"
+
+	. "github.com/pudottapommin/golib/http/binding"
 )
 
 type BenchStruct struct {
@@ -18,7 +18,7 @@ type BenchStruct struct {
 }
 
 func BenchmarkFormBinder_Bind(b *testing.B) {
-	binder := NewFormBinder()
+	binder := NewFormBinder[BenchStruct]()
 	form := url.Values{}
 	form.Set("name", "John Doe")
 	form.Set("age", "30")
@@ -29,42 +29,34 @@ func BenchmarkFormBinder_Bind(b *testing.B) {
 	form.Add("items", "3")
 	form.Set("address", "123 Main St")
 
-	req, _ := http.NewRequest("POST", "/", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
-	b.Run("Cached", func(b *testing.B) {
+	b.Run("BindTo", func(b *testing.B) {
 		var dst BenchStruct
-		// Warm up the cache
-		_ = binder.Bind(req, &dst)
+		_ = binder.BindTo(req, &dst)
 
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = binder.Bind(req, &dst)
+			_ = binder.BindTo(req, &dst)
 		}
 	})
 
-	b.Run("NoCache_MetadataOnly", func(b *testing.B) {
-		var dst BenchStruct
-		rt := reflect.TypeOf(&dst).Elem()
-		
+	b.Run("Bind", func(b *testing.B) {
+		_, _ = binder.Bind(req)
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// Manually clear the metadata cache for this type
-			metadataCache.Delete(rt)
-			_ = binder.Bind(req, &dst)
+			_, _ = binder.Bind(req)
 		}
 	})
 
-	b.Run("NoCache_Full", func(b *testing.B) {
+	b.Run("NewInstance", func(b *testing.B) {
 		var dst BenchStruct
-		rt := reflect.TypeOf(&dst).Elem()
-		
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			// Clear both caches
-			metadataCache.Delete(rt)
-			binder.cache = sync.Map{}
-			_ = binder.Bind(req, &dst)
+			fresh := NewFormBinder[BenchStruct]()
+			_ = fresh.BindTo(req, &dst)
 		}
 	})
 }

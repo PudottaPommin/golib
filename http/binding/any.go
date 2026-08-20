@@ -8,6 +8,21 @@ import (
 // AnyBinder is a fallback binder that uses reflection to detect BindUnmarshaler at runtime.
 type AnyBinder struct{}
 
+func (m AnyBinder) MappableType(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+	target := t
+	if target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+	if target.Kind() == reflect.Slice {
+		target = target.Elem()
+	}
+	ptr := reflect.PointerTo(target)
+	return ptr.Implements(reflect.TypeFor[BindUnmarshaler]())
+}
+
 func (m AnyBinder) Mappable(a any) bool {
 	if a == nil {
 		return false

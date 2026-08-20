@@ -1,53 +1,42 @@
 package binding
 
-var _ GenericBinder[string] = (*StringBinder)(nil)
+var _ Binder[string] = (*StringBinder)(nil)
 
-type StringBinder struct{}
+// StringGenericBinder binds string inputs to string types (including custom ~string types).
+type StringGenericBinder[T ~string] struct{}
 
-func (m StringBinder) guard(a any) bool {
-	switch a.(type) {
-	case *string, *[]string:
-		return true
-	default:
-		return false
-	}
-}
-
-func (m StringBinder) Mappable(a any) bool {
-	switch a.(type) {
-	case *string, *[]string:
-		return true
-	default:
-		return false
-	}
-}
-
-func (m StringBinder) Bind(src string, dst any) error {
-	if !m.guard(dst) {
-		return ErrDestinationTypeInvalid
-	}
-	return m.BindT(src, dst.(*string))
-}
-
-func (m StringBinder) BindMany(src []string, dst any) error {
-	if !m.guard(dst) {
-		return ErrDestinationTypeInvalid
-	}
-	return m.BindManyT(src, dst.(*[]string))
-}
-
-func (m StringBinder) BindT(src string, dst *string) error {
+func (m StringGenericBinder[T]) Bind(s string, dst *T) error {
 	if dst == nil {
 		return ErrDestinationNil
 	}
-	*dst = src
+	*dst = T(s)
 	return nil
 }
 
-func (m StringBinder) BindManyT(src []string, dst *[]string) error {
+func (m StringGenericBinder[T]) BindMany(s []string, dst *[]T) error {
 	if dst == nil {
 		return ErrDestinationNil
 	}
-	*dst = src
+	if cap(*dst) < len(s) {
+		*dst = make([]T, len(s))
+	} else {
+		*dst = (*dst)[:len(s)]
+	}
+	for i, v := range s {
+		(*dst)[i] = T(v)
+	}
 	return nil
 }
+
+// BindT is provided for backward compatibility.
+func (m StringGenericBinder[T]) BindT(src string, dst *T) error {
+	return m.Bind(src, dst)
+}
+
+// BindManyT is provided for backward compatibility.
+func (m StringGenericBinder[T]) BindManyT(src []string, dst *[]T) error {
+	return m.BindMany(src, dst)
+}
+
+// StringBinder is an alias for StringGenericBinder[string].
+type StringBinder = StringGenericBinder[string]

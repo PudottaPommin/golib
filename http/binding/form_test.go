@@ -1,10 +1,12 @@
-package binding
+package binding_test
 
 import (
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	. "github.com/pudottapommin/golib/http/binding"
 )
 
 type FormTestStruct struct {
@@ -14,31 +16,50 @@ type FormTestStruct struct {
 }
 
 func TestFormBinder_Bind(t *testing.T) {
-	binder := NewFormBinder()
+	binder := NewFormBinder[FormTestStruct]()
 
 	form := url.Values{}
 	form.Add("id", "123")
 	form.Add("name", "John Doe")
 	form.Add("age", "30")
 
-	req, _ := http.NewRequest("POST", "/", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
-	var dst FormTestStruct
-	err := binder.Bind(req, &dst)
-	if err != nil {
-		t.Fatalf("Bind failed: %v", err)
-	}
+	t.Run("BindTo", func(t *testing.T) {
+		var dst FormTestStruct
+		err := binder.BindTo(req, &dst)
+		if err != nil {
+			t.Fatalf("BindTo failed: %v", err)
+		}
 
-	if dst.ID != 123 {
-		t.Errorf("Expected ID 123, got %d", dst.ID)
-	}
-	if dst.Name != "John Doe" {
-		t.Errorf("Expected Name 'John Doe', got '%s'", dst.Name)
-	}
-	if dst.Age != 30 {
-		t.Errorf("Expected Age 30, got %d", dst.Age)
-	}
+		if dst.ID != 123 {
+			t.Errorf("Expected ID 123, got %d", dst.ID)
+		}
+		if dst.Name != "John Doe" {
+			t.Errorf("Expected Name 'John Doe', got '%s'", dst.Name)
+		}
+		if dst.Age != 30 {
+			t.Errorf("Expected Age 30, got %d", dst.Age)
+		}
+	})
+
+	t.Run("Bind", func(t *testing.T) {
+		dst, err := binder.Bind(req)
+		if err != nil {
+			t.Fatalf("Bind failed: %v", err)
+		}
+
+		if dst.ID != 123 {
+			t.Errorf("Expected ID 123, got %d", dst.ID)
+		}
+		if dst.Name != "John Doe" {
+			t.Errorf("Expected Name 'John Doe', got '%s'", dst.Name)
+		}
+		if dst.Age != 30 {
+			t.Errorf("Expected Age 30, got %d", dst.Age)
+		}
+	})
 }
 
 type FormManyTestStruct struct {
@@ -47,7 +68,7 @@ type FormManyTestStruct struct {
 }
 
 func TestFormBinder_BindMany(t *testing.T) {
-	binder := NewFormBinder()
+	binder := NewFormBinder[FormManyTestStruct]()
 
 	form := url.Values{}
 	form.Add("ids", "1")
@@ -56,11 +77,11 @@ func TestFormBinder_BindMany(t *testing.T) {
 	form.Add("names", "Alice")
 	form.Add("names", "Bob")
 
-	req, _ := http.NewRequest("POST", "/", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
 	var dst FormManyTestStruct
-	err := binder.Bind(req, &dst)
+	err := binder.BindTo(req, &dst)
 	if err != nil {
 		t.Fatalf("Bind failed: %v", err)
 	}
@@ -89,7 +110,7 @@ func TestFormBinder_BindMany(t *testing.T) {
 }
 
 func TestFormBinder_SingularMultiple(t *testing.T) {
-	binder := NewFormBinder()
+	binder := NewFormBinder[FormTestStruct]()
 
 	form := url.Values{}
 	form.Add("id", "100")
@@ -97,11 +118,11 @@ func TestFormBinder_SingularMultiple(t *testing.T) {
 	form.Add("name", "First")
 	form.Add("name", "Last") // last should win
 
-	req, _ := http.NewRequest("POST", "/", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
 	var dst FormTestStruct
-	err := binder.Bind(req, &dst)
+	err := binder.BindTo(req, &dst)
 	if err != nil {
 		t.Fatalf("Bind failed: %v", err)
 	}
@@ -115,16 +136,16 @@ func TestFormBinder_SingularMultiple(t *testing.T) {
 }
 
 func TestFormBinder_SliceSingle(t *testing.T) {
-	binder := NewFormBinder()
+	binder := NewFormBinder[FormManyTestStruct]()
 
 	form := url.Values{}
 	form.Add("ids", "42")
 
-	req, _ := http.NewRequest("POST", "/", nil)
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
 	var dst FormManyTestStruct
-	err := binder.Bind(req, &dst)
+	err := binder.BindTo(req, &dst)
 	if err != nil {
 		t.Fatalf("Bind failed: %v", err)
 	}
@@ -165,13 +186,13 @@ type RequiredTestStruct struct {
 
 func TestFormBinder_Required(t *testing.T) {
 	t.Run("missing required", func(t *testing.T) {
-		binder := NewFormBinder()
+		binder := NewFormBinder[RequiredTestStruct]()
 		form := url.Values{}
-		req, _ := http.NewRequest("POST", "/", nil)
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
 		req.Form = form
 
 		var dst RequiredTestStruct
-		err := binder.Bind(req, &dst)
+		err := binder.BindTo(req, &dst)
 		if err == nil {
 			t.Error("expected error for missing required field")
 		}
@@ -181,15 +202,15 @@ func TestFormBinder_Required(t *testing.T) {
 	})
 
 	t.Run("required present", func(t *testing.T) {
-		binder := NewFormBinder()
+		binder := NewFormBinder[RequiredTestStruct]()
 		form := url.Values{}
 		form.Set("name", "test")
 		form.Set("opt", "optional")
-		req, _ := http.NewRequest("POST", "/", nil)
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
 		req.Form = form
 
 		var dst RequiredTestStruct
-		err := binder.Bind(req, &dst)
+		err := binder.BindTo(req, &dst)
 		if err != nil {
 			t.Fatalf("Bind failed: %v", err)
 		}
@@ -202,13 +223,13 @@ func TestFormBinder_Required(t *testing.T) {
 	})
 
 	t.Run("optional missing", func(t *testing.T) {
-		binder := NewFormBinder()
+		binder := NewFormBinder[RequiredTestStruct]()
 		form := url.Values{"name": []string{"test"}}
-		req, _ := http.NewRequest("POST", "/", nil)
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
 		req.Form = form
 
 		var dst RequiredTestStruct
-		err := binder.Bind(req, &dst)
+		err := binder.BindTo(req, &dst)
 		if err != nil {
 			t.Fatalf("Bind failed: %v", err)
 		}

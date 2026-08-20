@@ -1,4 +1,4 @@
-package binding
+package binding_test
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"testing"
 
+	. "github.com/pudottapommin/golib/http/binding"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -100,33 +101,31 @@ type BenchUnmarshalerStruct struct {
 
 func BenchmarkFormBinder_Unmarshaler(b *testing.B) {
 	b.Run("Any", func(b *testing.B) {
-		// Use the default which includes AnyUnmarshalerBinder
-		binder := NewFormBinder()
+		binder := NewFormBinder[BenchUnmarshalerStruct]()
 		form := url.Values{}
 		form.Set("custom", "data")
-		req, _ := http.NewRequest("POST", "/", nil)
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
 		req.Form = form
 
 		var dst BenchUnmarshalerStruct
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = binder.Bind(req, &dst)
+			_ = binder.BindTo(req, &dst)
 		}
 	})
 
 	b.Run("Generic", func(b *testing.B) {
-		// Explicitly add the generic binder
-		binder := NewFormBinder()
-		binder.AddBinder(CustomBinder[customType, *customType]{})
+		binder := NewFormBinder[BenchUnmarshalerStruct]()
+		binder.AddBinder(WrapBinder(CustomBinder[customType, *customType]{}))
 		form := url.Values{}
 		form.Set("custom", "data")
-		req, _ := http.NewRequest("POST", "/", nil)
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
 		req.Form = form
 
 		var dst BenchUnmarshalerStruct
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = binder.Bind(req, &dst)
+			_ = binder.BindTo(req, &dst)
 		}
 	})
 }
