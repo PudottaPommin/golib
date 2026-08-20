@@ -3,7 +3,7 @@ module github.com/pudottapommin/golib
 go 1.27
 
 require (
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/klauspost/compress v1.19.2
 	github.com/stretchr/testify v1.12.1
 	github.com/valyala/bytebufferpool v1.0.0
