@@ -19,8 +19,10 @@ func (m AnyBinder) MappableType(t reflect.Type) bool {
 	if target.Kind() == reflect.Slice {
 		target = target.Elem()
 	}
-	ptr := reflect.PointerTo(target)
-	return ptr.Implements(reflect.TypeFor[BindUnmarshaler]())
+	if target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+	return implementsUnmarshaler(target)
 }
 
 func (m AnyBinder) Mappable(a any) bool {
@@ -34,21 +36,37 @@ func (m AnyBinder) Mappable(a any) bool {
 
 	et := t.Elem()
 	if et.Kind() == reflect.Slice {
-		return reflect.PointerTo(et.Elem()).Implements(reflect.TypeFor[BindUnmarshaler]())
+		elem := et.Elem()
+		if elem.Kind() == reflect.Pointer {
+			elem = elem.Elem()
+		}
+		return implementsUnmarshaler(elem)
+	}
+	if et.Kind() == reflect.Pointer {
+		return implementsUnmarshaler(et.Elem())
 	}
 
-	return t.Implements(reflect.TypeFor[BindUnmarshaler]())
+	return implementsUnmarshaler(et)
 }
 
 func (m AnyBinder) Bind(src string, dst any) error {
 	if dst == nil {
 		return ErrDestinationNil
 	}
-	bu, ok := dst.(BindUnmarshaler)
-	if !ok {
-		return ErrDestinationTypeInvalid
+	if bu, ok := dst.(BindUnmarshaler); ok {
+		return bu.UnmarshalBind(src)
 	}
-	return bu.UnmarshalBind(src)
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() == reflect.Pointer && !rv.IsNil() && rv.Elem().Kind() == reflect.Pointer {
+		elem := rv.Elem()
+		if elem.IsNil() {
+			elem.Set(reflect.New(elem.Type().Elem()))
+		}
+		if bu, ok := elem.Interface().(BindUnmarshaler); ok {
+			return bu.UnmarshalBind(src)
+		}
+	}
+	return ErrDestinationTypeInvalid
 }
 
 func (m AnyBinder) BindMany(src []string, dst any) error {

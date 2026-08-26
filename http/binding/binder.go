@@ -41,6 +41,21 @@ var (
 	ErrEmptySource            = errors.New("binder: empty source")
 )
 
+var unmarshalerType = reflect.TypeFor[BindUnmarshaler]()
+
+func implementsUnmarshaler(t reflect.Type) bool {
+	if t == nil {
+		return false
+	}
+	if t.Implements(unmarshalerType) {
+		return true
+	}
+	if t.Kind() != reflect.Pointer && reflect.PointerTo(t).Implements(unmarshalerType) {
+		return true
+	}
+	return false
+}
+
 type binderAdapter[T any] struct {
 	binder    Binder[T]
 	ptrType   reflect.Type
@@ -52,7 +67,30 @@ func (a binderAdapter[T]) MappableType(t reflect.Type) bool {
 	if t == nil {
 		return false
 	}
-	return t == a.ptrType || t == a.sliceType || t == a.valType || (t.Kind() == reflect.Slice && t.Elem() == a.valType)
+	if t == a.ptrType || t == a.sliceType || t == a.valType || (t.Kind() == reflect.Slice && t.Elem() == a.valType) {
+		return true
+	}
+
+	target := t
+	if target.Kind() == reflect.Pointer {
+		target = target.Elem()
+	}
+
+	if target.Kind() == reflect.Slice {
+		elem := target.Elem()
+		if elem.Kind() == reflect.Pointer {
+			elem = elem.Elem()
+		}
+		if implementsUnmarshaler(elem) {
+			return false
+		}
+		return elem.Kind() == a.valType.Kind()
+	}
+
+	if implementsUnmarshaler(target) {
+		return false
+	}
+	return target.Kind() == a.valType.Kind()
 }
 
 func (a binderAdapter[T]) Mappable(dst any) bool {
@@ -60,7 +98,37 @@ func (a binderAdapter[T]) Mappable(dst any) bool {
 		return false
 	}
 	dt := reflect.TypeOf(dst)
-	return dt == a.ptrType || dt == a.sliceType
+	if dt == a.ptrType || dt == a.sliceType {
+		return true
+	}
+	if dt.Kind() != reflect.Pointer {
+		return false
+	}
+
+	elem := dt.Elem()
+	if elem.Kind() == reflect.Slice {
+		sliceElem := elem.Elem()
+		if sliceElem.Kind() == reflect.Pointer {
+			sliceElem = sliceElem.Elem()
+		}
+		if implementsUnmarshaler(sliceElem) {
+			return false
+		}
+		return sliceElem.Kind() == a.valType.Kind()
+	}
+
+	if elem.Kind() == reflect.Pointer {
+		ptrElem := elem.Elem()
+		if implementsUnmarshaler(ptrElem) {
+			return false
+		}
+		return ptrElem.Kind() == a.valType.Kind()
+	}
+
+	if implementsUnmarshaler(elem) {
+		return false
+	}
+	return elem.Kind() == a.valType.Kind()
 }
 
 // Mappable returns true if the binder can map into destination type D.
@@ -69,19 +137,106 @@ func Mappable[D any](b FieldBinder, _ D) bool {
 }
 
 func (a binderAdapter[T]) Bind(src string, dst any) error {
-	v, ok := dst.(*T)
-	if !ok {
+	if dst == nil {
+		return ErrDestinationNil
+	}
+	if v, ok := dst.(*T); ok {
+		return a.binder.Bind(src, v)
+	}
+
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
 		return ErrDestinationTypeInvalid
 	}
-	return a.binder.Bind(src, v)
+
+	targetVal := rv.Elem()
+	if targetVal.Kind() == reflect.Pointer {
+		if targetVal.IsNil() {
+			targetVal.Set(reflect.New(targetVal.Type().Elem()))
+		}
+		targetVal = targetVal.Elem()
+	}
+
+	var tmp T
+	if err := a.binder.Bind(src, &tmp); err != nil {
+		return err
+	}
+
+	tmpVal := reflect.ValueOf(tmp)
+	if !tmpVal.Type().ConvertibleTo(targetVal.Type()) {
+		return ErrDestinationTypeInvalid
+	}
+
+	targetVal.Set(tmpVal.Convert(targetVal.Type()))
+	return nil
 }
 
 func (a binderAdapter[T]) BindMany(src []string, dst any) error {
-	v, ok := dst.(*[]T)
-	if !ok {
+	if dst == nil {
+		return ErrDestinationNil
+	}
+	if v, ok := dst.(*[]T); ok {
+		return a.binder.BindMany(src, v)
+	}
+
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() || rv.Elem().Kind() != reflect.Slice {
 		return ErrDestinationTypeInvalid
 	}
-	return a.binder.BindMany(src, v)
+
+	sliceVal := rv.Elem()
+	sliceType := sliceVal.Type()
+	elemType := sliceType.Elem()
+
+	var tmp []T
+	if cap := sliceVal.Cap(); cap >= len(src) {
+		tmp = make([]T, 0, cap)
+	}
+	if err := a.binder.BindMany(src, &tmp); err != nil {
+		return err
+	}
+
+	targetElemType := elemType
+	isPtrElem := elemType.Kind() == reflect.Pointer
+	if isPtrElem {
+		targetElemType = elemType.Elem()
+	}
+
+	tmpType := reflect.TypeFor[T]()
+	if !tmpType.ConvertibleTo(targetElemType) {
+		return ErrDestinationTypeInvalid
+	}
+
+	if sliceVal.Cap() >= len(tmp) {
+		sliceVal.SetLen(len(tmp))
+		for i, v := range tmp {
+			val := reflect.ValueOf(v).Convert(targetElemType)
+			if isPtrElem {
+				elem := sliceVal.Index(i)
+				if elem.IsNil() {
+					elem.Set(reflect.New(targetElemType))
+				}
+				elem.Elem().Set(val)
+			} else {
+				sliceVal.Index(i).Set(val)
+			}
+		}
+	} else {
+		newSlice := reflect.MakeSlice(sliceType, len(tmp), len(tmp))
+		for i, v := range tmp {
+			val := reflect.ValueOf(v).Convert(targetElemType)
+			if isPtrElem {
+				ptr := reflect.New(targetElemType)
+				ptr.Elem().Set(val)
+				newSlice.Index(i).Set(ptr)
+			} else {
+				newSlice.Index(i).Set(val)
+			}
+		}
+		sliceVal.Set(newSlice)
+	}
+
+	return nil
 }
 
 // WrapBinder converts a typed Binder[T] into a FieldBinder for use with FormBinder.
@@ -244,7 +399,7 @@ func FormSkipDefaultBinders[T any](skipDefaults bool) FormBinderOption[T] {
 
 func NewFormBinder[T any](opts ...FormBinderOption[T]) *FormBinder[T] {
 	fb := &FormBinder[T]{
-		binders:       GetDefaultBinders(),
+		binders:       nil,
 		parseStrategy: parseStrategyMultipart,
 		maxMemory:     defaultMaxMemory,
 	}
@@ -359,11 +514,32 @@ func (fb *FormBinder[T]) bindStructWithMeta(elem reflect.Value, form url.Values)
 			continue
 		}
 
-		addr := fieldVal.Addr().Interface()
 		if f.isSlice {
+			addr := fieldVal.Addr().Interface()
 			err = f.binder.BindMany(values, addr)
 		} else {
-			err = f.binder.Bind(values[len(values)-1], addr)
+			lastVal := values[len(values)-1]
+			if fieldVal.Kind() == reflect.Pointer {
+				if lastVal == "" {
+					fieldVal.Set(reflect.Zero(fieldVal.Type()))
+					continue
+				}
+				if fieldVal.IsNil() {
+					fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+				}
+				err = f.binder.Bind(lastVal, fieldVal.Interface())
+				if err != nil {
+					if errors.Is(err, ErrValueIsZero) {
+						fieldVal.Set(reflect.Zero(fieldVal.Type()))
+						err = nil
+					} else {
+						fieldVal.Set(reflect.Zero(fieldVal.Type()))
+					}
+				}
+			} else {
+				addr := fieldVal.Addr().Interface()
+				err = f.binder.Bind(lastVal, addr)
+			}
 		}
 		if err != nil && !errors.Is(err, ErrValueIsZero) {
 			return err

@@ -238,3 +238,65 @@ func TestFormBinder_Required(t *testing.T) {
 		}
 	})
 }
+
+type PointerFormTestStruct struct {
+	ID     *int    `form:"id"`
+	Name   *string `form:"name"`
+	Active *bool   `form:"active"`
+}
+
+func TestFormBinder_Pointers(t *testing.T) {
+	binder := NewFormBinder[PointerFormTestStruct]()
+
+	t.Run("populated fields", func(t *testing.T) {
+		form := url.Values{}
+		form.Set("id", "42")
+		form.Set("name", "Jane")
+		form.Set("active", "true")
+
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
+		req.Form = form
+
+		var dst PointerFormTestStruct
+		err := binder.BindTo(req, &dst)
+		if err != nil {
+			t.Fatalf("Bind failed: %v", err)
+		}
+
+		if dst.ID == nil || *dst.ID != 42 {
+			t.Errorf("expected ID 42, got %v", dst.ID)
+		}
+		if dst.Name == nil || *dst.Name != "Jane" {
+			t.Errorf("expected Name 'Jane', got %v", dst.Name)
+		}
+		if dst.Active == nil || *dst.Active != true {
+			t.Errorf("expected Active true, got %v", dst.Active)
+		}
+	})
+
+	t.Run("empty fields remain nil", func(t *testing.T) {
+		form := url.Values{}
+		form.Set("id", "")
+		form.Set("name", "")
+		form.Set("active", "")
+
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
+		req.Form = form
+
+		var dst PointerFormTestStruct
+		err := binder.BindTo(req, &dst)
+		if err != nil {
+			t.Fatalf("Bind failed: %v", err)
+		}
+
+		if dst.ID != nil {
+			t.Errorf("expected ID nil, got %v", *dst.ID)
+		}
+		if dst.Name != nil {
+			t.Errorf("expected Name nil, got %v", *dst.Name)
+		}
+		if dst.Active != nil {
+			t.Errorf("expected Active nil, got %v", *dst.Active)
+		}
+	})
+}

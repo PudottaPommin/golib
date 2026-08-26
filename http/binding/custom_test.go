@@ -129,3 +129,36 @@ func BenchmarkFormBinder_Unmarshaler(b *testing.B) {
 		}
 	})
 }
+
+type PointerUnmarshalerStruct struct {
+	Custom *customType `form:"custom"`
+}
+
+func TestFormBinder_PointerUnmarshaler(t *testing.T) {
+	binder := NewFormBinder[PointerUnmarshalerStruct]()
+
+	t.Run("Populated", func(t *testing.T) {
+		form := url.Values{}
+		form.Set("custom", "val")
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
+		req.Form = form
+
+		var dst PointerUnmarshalerStruct
+		err := binder.BindTo(req, &dst)
+		assert.NoError(t, err)
+		assert.NotNil(t, dst.Custom)
+		assert.Equal(t, "custom:val", dst.Custom.val)
+	})
+
+	t.Run("Empty", func(t *testing.T) {
+		form := url.Values{}
+		form.Set("custom", "")
+		req, _ := http.NewRequest(http.MethodPost, "/", nil)
+		req.Form = form
+
+		var dst PointerUnmarshalerStruct
+		err := binder.BindTo(req, &dst)
+		assert.NoError(t, err)
+		assert.Nil(t, dst.Custom)
+	})
+}

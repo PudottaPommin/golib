@@ -112,15 +112,25 @@ func TestCustomApproximateTypes(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "/", nil)
 	req.Form = form
 
-	res, err := Bind[CustomTypeForm](req,
-		FormWithGenericBinder[CustomTypeForm](StringGenericBinder[CustomUserID]{}),
-		FormWithGenericBinder[CustomTypeForm](NumericBinder[CustomAge]{}),
-		FormWithGenericBinder[CustomTypeForm](BoolGenericBinder[CustomFlag]{}),
-	)
-	assert.NoError(t, err)
-	assert.Equal(t, CustomUserID("user_abc_123"), res.ID)
-	assert.Equal(t, CustomAge(35), res.Age)
-	assert.Equal(t, CustomFlag(true), res.Active)
+	t.Run("Default Auto Match", func(t *testing.T) {
+		res, err := Bind[CustomTypeForm](req)
+		assert.NoError(t, err)
+		assert.Equal(t, CustomUserID("user_abc_123"), res.ID)
+		assert.Equal(t, CustomAge(35), res.Age)
+		assert.Equal(t, CustomFlag(true), res.Active)
+	})
+
+	t.Run("With Explicit Generic Binders", func(t *testing.T) {
+		res, err := Bind[CustomTypeForm](req,
+			FormWithGenericBinder[CustomTypeForm](StringGenericBinder[CustomUserID]{}),
+			FormWithGenericBinder[CustomTypeForm](NumericBinder[CustomAge]{}),
+			FormWithGenericBinder[CustomTypeForm](BoolGenericBinder[CustomFlag]{}),
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, CustomUserID("user_abc_123"), res.ID)
+		assert.Equal(t, CustomAge(35), res.Age)
+		assert.Equal(t, CustomFlag(true), res.Active)
+	})
 }
 
 func TestFormParsingOptions(t *testing.T) {
@@ -324,6 +334,98 @@ func TestGenericParse(t *testing.T) {
 		_, err := Parse[unhandledType]("foo")
 		assert.ErrorIs(t, err, ErrDestinationTypeInvalid)
 	})
+}
+
+type CustomFloat float64
+type CustomUint uint32
+type CustomSliceItem int
+
+type ComprehensiveCustomForm struct {
+	ID       CustomAge          `form:"id"`
+	Score    CustomFloat        `form:"score"`
+	Port     CustomUint         `form:"port"`
+	Name     CustomUserID       `form:"name"`
+	Active   CustomFlag         `form:"active"`
+	PtrID    *CustomAge         `form:"ptr_id"`
+	PtrName  *CustomUserID      `form:"ptr_name"`
+	Items    []CustomSliceItem  `form:"items"`
+	PtrItems []*CustomSliceItem `form:"ptr_items"`
+}
+
+type CustomWithUnmarshaler int
+
+func (c *CustomWithUnmarshaler) UnmarshalBind(s string) error {
+	*c = 9999 // custom logic to verify UnmarshalBind is called over default int parser
+	return nil
+}
+
+type FormWithCustomUnmarshaler struct {
+	Normal CustomAge             `form:"normal"`
+	Custom CustomWithUnmarshaler `form:"custom"`
+}
+
+func TestCustomTypesAutoMatch(t *testing.T) {
+	form := url.Values{}
+	form.Set("id", "42")
+	form.Set("score", "99.75")
+	form.Set("port", "8080")
+	form.Set("name", "Gopher")
+	form.Set("active", "true")
+	form.Set("ptr_id", "100")
+	form.Set("ptr_name", "PointerGopher")
+	form.Add("items", "10")
+	form.Add("items", "20")
+	form.Add("ptr_items", "30")
+	form.Add("ptr_items", "40")
+
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
+	req.Form = form
+
+	res, err := Bind[ComprehensiveCustomForm](req)
+	assert.NoError(t, err)
+	assert.Equal(t, CustomAge(42), res.ID)
+	assert.InDelta(t, 99.75, float64(res.Score), 0.001)
+	assert.Equal(t, CustomUint(8080), res.Port)
+	assert.Equal(t, CustomUserID("Gopher"), res.Name)
+	assert.True(t, bool(res.Active))
+
+	assert.NotNil(t, res.PtrID)
+	assert.Equal(t, CustomAge(100), *res.PtrID)
+	assert.NotNil(t, res.PtrName)
+	assert.Equal(t, CustomUserID("PointerGopher"), *res.PtrName)
+
+	assert.Equal(t, []CustomSliceItem{10, 20}, res.Items)
+	assert.Len(t, res.PtrItems, 2)
+	assert.Equal(t, CustomSliceItem(30), *res.PtrItems[0])
+	assert.Equal(t, CustomSliceItem(40), *res.PtrItems[1])
+}
+
+func TestCustomTypeWithBindUnmarshalerPriority(t *testing.T) {
+	form := url.Values{}
+	form.Set("normal", "123")
+	form.Set("custom", "123")
+
+	req, _ := http.NewRequest(http.MethodPost, "/", nil)
+	req.Form = form
+
+	res, err := Bind[FormWithCustomUnmarshaler](req)
+	assert.NoError(t, err)
+	assert.Equal(t, CustomAge(123), res.Normal)
+	assert.Equal(t, CustomWithUnmarshaler(9999), res.Custom) // UnmarshalBind was invoked!
+
+	// Test Parse with custom unmarshaler vs normal custom type
+	parsedNormal, err := Parse[CustomAge]("456")
+	assert.NoError(t, err)
+	assert.Equal(t, CustomAge(456), parsedNormal)
+
+	parsedCustom, err := Parse[CustomWithUnmarshaler]("456")
+	assert.NoError(t, err)
+	assert.Equal(t, CustomWithUnmarshaler(9999), parsedCustom)
+
+	// Test Value / Values helpers
+	val, err := Value[CustomAge](req, "normal")
+	assert.NoError(t, err)
+	assert.Equal(t, CustomAge(123), val)
 }
 
 func BenchmarkGenericBind(b *testing.B) {
