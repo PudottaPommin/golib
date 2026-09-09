@@ -59,11 +59,30 @@ func (u UUID) String() string {
 }
 
 func Parse(s string) (UUID, error) {
-	id, err := uuid.Parse(s)
-	if err != nil {
-		return Nil, err
+	return ParseT[UUID](s)
+}
+
+func ParseT[T ~[16]byte, V interface{ ~string | ~[16]byte | ~[]byte }](s V) (T, error) {
+	var v string
+	switch sv := any(s).(type) {
+	case string:
+		v = sv
+	case []byte:
+		v = string(sv)
+	case [16]byte:
+		var id T
+		copy(id[:], sv[:])
+		return id, nil
+	default:
+		return T{}, fmt.Errorf("uuid: failed to parse: %w", ErrConvertTypeError)
 	}
-	return UUID(id), nil
+
+	id, err := uuid.Parse(v)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return T(id), nil
 }
 
 func NewV7() UUID {

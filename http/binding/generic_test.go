@@ -341,15 +341,15 @@ type CustomUint uint32
 type CustomSliceItem int
 
 type ComprehensiveCustomForm struct {
+	PtrID    *CustomAge         `form:"ptr_id"`
+	PtrName  *CustomUserID      `form:"ptr_name"`
+	Name     CustomUserID       `form:"name"`
+	Items    []CustomSliceItem  `form:"items"`
+	PtrItems []*CustomSliceItem `form:"ptr_items"`
 	ID       CustomAge          `form:"id"`
 	Score    CustomFloat        `form:"score"`
 	Port     CustomUint         `form:"port"`
-	Name     CustomUserID       `form:"name"`
 	Active   CustomFlag         `form:"active"`
-	PtrID    *CustomAge         `form:"ptr_id"`
-	PtrName  *CustomUserID      `form:"ptr_name"`
-	Items    []CustomSliceItem  `form:"items"`
-	PtrItems []*CustomSliceItem `form:"ptr_items"`
 }
 
 type CustomWithUnmarshaler int
