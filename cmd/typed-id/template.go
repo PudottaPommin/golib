@@ -103,80 +103,78 @@ func generateJSONPreset(t *TypeInfo) string {
 
 	switch t.Kind {
 	case KindString:
-		b.WriteString(fmt.Sprintf(`// MarshalJSON implements json.Marshaler.
-func (id %s) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(id))
+		b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.String(string(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *%s) UnmarshalJSON(data []byte) error {
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
 	}
-	*id = %s(s)
+	*id = %[1]s(s)
 	return nil
 }
 
-`, name, name, name))
+`, name))
 	case KindUUID:
-		b.WriteString(fmt.Sprintf(`// MarshalJSON implements json.Marshaler.
-func (id %s) MarshalJSON() ([]byte, error) {
-	return json.Marshal(uuid.UUID(id))
+		b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.String(uuid.UUID(id).String()))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *%s) UnmarshalJSON(data []byte) error {
-	var err error
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var s string
-	if err = json.Unmarshal(data, &s); err != nil {
-		return err
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
 	}
-	var uid uuid.UUID
-	if uid, err = uuid.Parse(s); err != nil {
-		return err
+	uid, err := uuid.Parse(s)
+	if err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
 	}
-	*id = %s(uid)
+	*id = %[1]s(uid)
 	return nil
 }
 
-`, name, name, name))
-
+`, name))
 	case KindInt:
-		b.WriteString(fmt.Sprintf(`// MarshalJSON implements json.Marshaler.
-func (id %s) MarshalJSON() ([]byte, error) {
-	return json.Marshal(int64(id))
+		b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.Int(int64(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *%s) UnmarshalJSON(data []byte) error {
-	var v int64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var n int64
+	if err := json.UnmarshalDecode(dec, &n); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
 	}
-	*id = %s(v)
+	*id = %[1]s(n)
 	return nil
 }
 
-`, name, name, name))
+`, name))
 
 	case KindUint:
-		b.WriteString(fmt.Sprintf(`// MarshalJSON implements json.Marshaler.
-func (id %s) MarshalJSON() ([]byte, error) {
-	return json.Marshal(uint64(id))
+		b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.Uint(uint64(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *%s) UnmarshalJSON(data []byte) error {
-	var v uint64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var n uint64
+	if err := json.UnmarshalDecode(dec, &n); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
 	}
-	*id = %s(v)
+	*id = %[1]s(n)
 	return nil
 }
 
-`, name, name, name))
+`, name))
 	}
 
 	return b.String()
@@ -435,5 +433,61 @@ func (id *%s) Scan(src any) error {
 `, name, name, name, name, name, name, name, name, name, name, name, name, bitSize, name, bitSize, name, name, name))
 	}
 
+	return b.String()
+}
+
+func generateBinderPreset(t *TypeInfo) string {
+	var b strings.Builder
+	name := t.Name
+	bitSize := BitSizeForType(t.Underlying)
+
+	switch t.Kind {
+	case KindString:
+		b.WriteString(fmt.Sprintf(`// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%s) UnmarshalBind(s string) error {
+	*id = %s(s)
+	return nil
+}
+
+`, name, name))
+	case KindUUID:
+		b.WriteString(fmt.Sprintf(`// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%s) UnmarshalBind(s string) error {
+	gid, err := guid.ParseT[%s](s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind %s: %%w", err)
+	}
+	*id = gid 
+	return nil
+}
+
+`, name, name, name))
+
+	case KindInt:
+		b.WriteString(fmt.Sprintf(`/// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%s) UnmarshalBind(s string) error {
+	v, err := strconv.ParseInt(s, 10, %d)
+	if err != nil {
+		return err
+	}
+	*id = %s(v)
+	return nil
+}
+
+`, name, bitSize, name))
+
+	case KindUint:
+		b.WriteString(fmt.Sprintf(`// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%s) UnmarshalBind(s string) error {
+	v, err := strconv.ParseUint(s, 10, %d)
+	if err != nil {
+		return err
+	}
+	*id = %s(v)
+	return nil
+}
+
+`, name, bitSize, name))
+	}
 	return b.String()
 }

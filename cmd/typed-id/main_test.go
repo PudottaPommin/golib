@@ -26,11 +26,11 @@ type UuidID uuid.UUID
 	err = run([]string{"-dir=" + tempDir, "-type=MemberID", "-presets=all"})
 	require.NoError(t, err)
 
-	genPath := filepath.Join(tempDir, "memberid_typed_id.go")
+	genPath := filepath.Join(tempDir, "memberid.typed_id.go")
 	assert.FileExists(t, genPath)
 	content, err := os.ReadFile(genPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "func (id MemberID) MarshalJSON()")
+	assert.Contains(t, string(content), "func (id MemberID) MarshalJSONTo(in *jsontext.Encoder) error")
 
 	// Multiple types with custom output
 	customOut := "custom_gen.go"
@@ -41,9 +41,9 @@ type UuidID uuid.UUID
 	assert.FileExists(t, customPath)
 	content, err = os.ReadFile(customPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "func (id MemberID) MarshalJSON()")
+	assert.Contains(t, string(content), "func (id MemberID) MarshalJSONTo(in *jsontext.Encoder) error")
 	assert.Contains(t, string(content), "func (id OrgID) Value()")
-	assert.Contains(t, string(content), "func (id UuidID) MarshalJSON()")
+	assert.Contains(t, string(content), "func (id UuidID) MarshalJSONTo(in *jsontext.Encoder) error")
 	assert.Contains(t, string(content), "func (id UuidID) Value()")
 	assert.NotContains(t, string(content), "MarshalBinary") // binary omitted
 

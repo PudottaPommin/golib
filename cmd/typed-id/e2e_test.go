@@ -20,7 +20,7 @@ type MemberID string
 type ScoreID int64
 type BadgeID uint32
 `
-	err := os.WriteFile(filepath.Join(tempDir, "types.go"), []byte(typesContent), 0644)
+	err := os.WriteFile(filepath.Join(tempDir, "types.go"), []byte(typesContent), 0o644)
 	require.NoError(t, err)
 
 	// Run generator CLI on fixture
@@ -69,20 +69,25 @@ func TestGeneratedMethods(t *testing.T) {
 	}
 }
 `
-	err = os.WriteFile(filepath.Join(tempDir, "types_test.go"), []byte(testContent), 0644)
+	err = os.WriteFile(filepath.Join(tempDir, "types_test.go"), []byte(testContent), 0o644)
 	require.NoError(t, err)
 
 	// Copy go.mod or run go test in directory
 	goModContent := `module fixturetest
 
-go 1.26
+go 1.27
 `
-	err = os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte(goModContent), 0644)
+	err = os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte(goModContent), 0o644)
 	require.NoError(t, err)
 
-	cmd := exec.Command("go", "test", "-v", ".")
+	cmd := exec.Command("go", "get", "github.com/pudottapommin/golib")
 	cmd.Dir = tempDir
 	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "go mod tidy: %s", string(out))
+
+	cmd = exec.Command("go", "test", "-v", ".")
+	cmd.Dir = tempDir
+	out, err = cmd.CombinedOutput()
 	require.NoError(t, err, "go test failed: %s", string(out))
 	assert.Contains(t, string(out), "PASS")
 }

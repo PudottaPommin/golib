@@ -16,17 +16,18 @@ const (
 	PresetText   Preset = "text"
 	PresetJSON   Preset = "json"
 	PresetBinary Preset = "binary"
+	PresetBinder Preset = "binder"
 	PresetSQL    Preset = "sql"
 	PresetDB     Preset = "db"
 	PresetAll    Preset = "all"
 )
 
 // NormalizePresets normalizes a list of preset strings into distinct canonical presets.
-// "all" expands to text, json, binary, sql.
+// "all" expands to text, json, binary, binder, sql.
 // "db" is mapped to "sql".
 func NormalizePresets(presets []Preset) ([]Preset, error) {
 	if len(presets) == 0 {
-		return []Preset{PresetText, PresetJSON, PresetBinary, PresetSQL}, nil
+		return []Preset{PresetText, PresetJSON, PresetBinary, PresetBinder, PresetSQL}, nil
 	}
 
 	set := make(map[Preset]bool)
@@ -37,6 +38,7 @@ func NormalizePresets(presets []Preset) ([]Preset, error) {
 			set[PresetText] = true
 			set[PresetJSON] = true
 			set[PresetBinary] = true
+			set[PresetBinder] = true
 			set[PresetSQL] = true
 		case PresetText:
 			set[PresetText] = true
@@ -46,6 +48,8 @@ func NormalizePresets(presets []Preset) ([]Preset, error) {
 			set[PresetBinary] = true
 		case PresetSQL, PresetDB:
 			set[PresetSQL] = true
+		case PresetBinder:
+			set[PresetBinder] = true
 		case "":
 			continue
 		default:
@@ -54,7 +58,7 @@ func NormalizePresets(presets []Preset) ([]Preset, error) {
 	}
 
 	var result []Preset
-	for _, p := range []Preset{PresetText, PresetJSON, PresetBinary, PresetSQL} {
+	for _, p := range []Preset{PresetText, PresetJSON, PresetBinary, PresetBinder, PresetSQL} {
 		if set[p] {
 			result = append(result, p)
 		}
@@ -107,6 +111,9 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 	}
 
 	// Determine required imports
+	importAliases := make(map[string]string)
+	importAliases["github.com/pudottapommin/golib/pkg/uuid"] = "guid"
+
 	importSet := make(map[string]bool)
 	for _, t := range opts.Types {
 		if hasPreset(PresetText) {
@@ -117,6 +124,7 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 			}
 		}
 		if hasPreset(PresetJSON) {
+			importSet["encoding/json/jsontext"] = true
 			importSet["encoding/json/v2"] = true
 			if t.Kind == KindUUID {
 				importSet["uuid"] = true
@@ -128,6 +136,15 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 				importSet["fmt"] = true
 			} else if t.Kind == KindUUID {
 				importSet["uuid"] = true
+			}
+		}
+		if hasPreset(PresetBinder) {
+			//importSet["github.com/pudottapommin/golib/http/binding"] = true
+			importSet["fmt"] = true
+			if t.Kind == KindInt || t.Kind == KindUint {
+				importSet["strconv"] = true
+			} else if t.Kind == KindUUID {
+				importSet["github.com/pudottapommin/golib/pkg/uuid"] = true
 			}
 		}
 		if hasPreset(PresetSQL) {
@@ -154,6 +171,10 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 	if len(imports) > 0 {
 		buf.WriteString("import (\n")
 		for _, imp := range imports {
+			if alias, ok := importAliases[imp]; ok {
+				buf.WriteString(fmt.Sprintf("\t%s %q\n", alias, imp))
+				continue
+			}
 			buf.WriteString(fmt.Sprintf("\t%q\n", imp))
 		}
 		buf.WriteString(")\n\n")
@@ -173,6 +194,9 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 		}
 		if hasPreset(PresetBinary) {
 			buf.WriteString(generateBinaryPreset(t))
+		}
+		if hasPreset(PresetBinder) {
+			buf.WriteString(generateBinderPreset(t))
 		}
 		if hasPreset(PresetSQL) {
 			buf.WriteString(generateSQLPreset(t))
