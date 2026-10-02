@@ -85,9 +85,19 @@ func BitSizeForType(typeName string) int {
 
 // GenerateOptions contains configuration for code generation.
 type GenerateOptions struct {
-	PackageName string      // Generated package name (defaults to target package)
-	Types       []*TypeInfo // Target types to generate for
-	Presets     []Preset    // Enabled presets
+	PackageName         string       // Generated package name (defaults to target package)
+	Types               []*TypeInfo  // Target types to generate for
+	Presets             []Preset     // Enabled presets
+	DefaultByteEncoding ByteEncoding // Default encoding for []byte types (from CLI flag)
+	DefaultSQLEncoding  SQLEncoding  // Default SQL encoding for []byte types (from CLI flag)
+}
+
+// EffectivePresets returns the type's configured presets, or falls back to globalPresets.
+func (t *TypeInfo) EffectivePresets(globalPresets []Preset) []Preset {
+	if len(t.Presets) > 0 {
+		return t.Presets
+	}
+	return globalPresets
 }
 
 // Generate creates formatted Go source code for the requested types and presets.
@@ -106,8 +116,24 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 		pkgName = opts.Types[0].PackageName
 	}
 
-	hasPreset := func(p Preset) bool {
-		return slices.Contains(presets, p)
+	// Apply default byte encoding and SQL encoding to types that don't have a directive override
+	for _, t := range opts.Types {
+		if t.Kind == KindBytes {
+			if t.ByteEncoding == "" {
+				if opts.DefaultByteEncoding != "" {
+					t.ByteEncoding = opts.DefaultByteEncoding
+				} else {
+					t.ByteEncoding = ByteEncodingHex
+				}
+			}
+			if t.SQLEncoding == "" {
+				if opts.DefaultSQLEncoding != "" {
+					t.SQLEncoding = opts.DefaultSQLEncoding
+				} else {
+					t.SQLEncoding = SQLEncodingBytes
+				}
+			}
+		}
 	}
 
 	// Determine required imports
@@ -116,11 +142,26 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 
 	importSet := make(map[string]bool)
 	for _, t := range opts.Types {
+		tPresets := t.EffectivePresets(presets)
+		hasPreset := func(p Preset) bool {
+			return slices.Contains(tPresets, p)
+		}
+		byteEncodingImport := func() {
+			if t.ByteEncoding == ByteEncodingBase64 {
+				importSet["encoding/base64"] = true
+			} else {
+				importSet["encoding/hex"] = true
+			}
+		}
 		if hasPreset(PresetText) {
 			if t.Kind == KindInt || t.Kind == KindUint {
 				importSet["strconv"] = true
 			} else if t.Kind == KindUUID {
 				importSet["uuid"] = true
+			} else if t.Kind == KindBytes {
+				byteEncodingImport()
+			} else if t.Kind == KindMap {
+				importSet["encoding/json/v2"] = true
 			}
 		}
 		if hasPreset(PresetJSON) {
@@ -128,6 +169,11 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 			importSet["encoding/json/v2"] = true
 			if t.Kind == KindUUID {
 				importSet["uuid"] = true
+			} else if t.Kind == KindBytes {
+				importSet["fmt"] = true
+				byteEncodingImport()
+			} else if t.Kind == KindMap {
+				importSet["fmt"] = true
 			}
 		}
 		if hasPreset(PresetBinary) {
@@ -137,6 +183,8 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 			} else if t.Kind == KindUUID {
 				importSet["uuid"] = true
 			}
+			// KindBytes: no extra imports for binary
+			// KindMap: binary not supported
 		}
 		if hasPreset(PresetBinder) {
 			//importSet["github.com/pudottapommin/golib/http/binding"] = true
@@ -145,7 +193,10 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 				importSet["strconv"] = true
 			} else if t.Kind == KindUUID {
 				importSet["github.com/pudottapommin/golib/pkg/uuid"] = true
+			} else if t.Kind == KindBytes {
+				byteEncodingImport()
 			}
+			// KindMap: binder not supported
 		}
 		if hasPreset(PresetSQL) {
 			importSet["database/sql/driver"] = true
@@ -154,6 +205,15 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 				importSet["strconv"] = true
 			} else if t.Kind == KindUUID {
 				importSet["uuid"] = true
+			} else if t.Kind == KindBytes {
+				if t.SQLEncoding == SQLEncodingBase64 || (t.SQLEncoding == SQLEncodingBytes && t.ByteEncoding == ByteEncodingBase64) {
+					importSet["encoding/base64"] = true
+				}
+				if t.SQLEncoding == SQLEncodingHex || (t.SQLEncoding == SQLEncodingBytes && t.ByteEncoding != ByteEncodingBase64) {
+					importSet["encoding/hex"] = true
+				}
+			} else if t.Kind == KindMap {
+				importSet["encoding/json/v2"] = true
 			}
 		}
 	}
@@ -181,6 +241,10 @@ func Generate(opts GenerateOptions) ([]byte, error) {
 	}
 
 	for i, t := range opts.Types {
+		tPresets := t.EffectivePresets(presets)
+		hasPreset := func(p Preset) bool {
+			return slices.Contains(tPresets, p)
+		}
 		if i > 0 {
 			buf.WriteString("\n")
 		}

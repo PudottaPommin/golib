@@ -4,10 +4,14 @@ package testdata
 
 import (
 	"database/sql/driver"
+	"encoding/base64"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/hex"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strconv"
+	"uuid"
 )
 
 // --- Methods for UserID ---
@@ -28,16 +32,16 @@ func (id *UserID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler.
-func (id UserID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(id))
+// MarshalJSONTo implements json.MarshalerTo.
+func (id UserID) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.String(string(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *UserID) UnmarshalJSON(data []byte) error {
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *UserID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("UserID failed UnmarshalJSONFrom: %w", err)
 	}
 	*id = UserID(s)
 	return nil
@@ -51,6 +55,12 @@ func (id UserID) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary implements encoding.BinaryUnmarshaler.
 func (id *UserID) UnmarshalBinary(data []byte) error {
 	*id = UserID(data)
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *UserID) UnmarshalBind(s string) error {
+	*id = UserID(s)
 	return nil
 }
 
@@ -99,18 +109,18 @@ func (id *AccountID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler.
-func (id AccountID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(int64(id))
+// MarshalJSONTo implements json.MarshalerTo.
+func (id AccountID) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.Int(int64(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *AccountID) UnmarshalJSON(data []byte) error {
-	var v int64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *AccountID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var n int64
+	if err := json.UnmarshalDecode(dec, &n); err != nil {
+		return fmt.Errorf("AccountID failed UnmarshalJSONFrom: %w", err)
 	}
-	*id = AccountID(v)
+	*id = AccountID(n)
 	return nil
 }
 
@@ -127,6 +137,16 @@ func (id *AccountID) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("invalid binary length for %s: got %d, expected 8", "AccountID", len(data))
 	}
 	*id = AccountID(binary.BigEndian.Uint64(data))
+	return nil
+}
+
+// / UnmarshalBind implements binding.BindUnmarshaller.
+func (id *AccountID) UnmarshalBind(s string) error {
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*id = AccountID(v)
 	return nil
 }
 
@@ -216,18 +236,18 @@ func (id *RoleID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler.
-func (id RoleID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(uint64(id))
+// MarshalJSONTo implements json.MarshalerTo.
+func (id RoleID) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.Uint(uint64(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *RoleID) UnmarshalJSON(data []byte) error {
-	var v uint64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *RoleID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var n uint64
+	if err := json.UnmarshalDecode(dec, &n); err != nil {
+		return fmt.Errorf("RoleID failed UnmarshalJSONFrom: %w", err)
 	}
-	*id = RoleID(v)
+	*id = RoleID(n)
 	return nil
 }
 
@@ -244,6 +264,16 @@ func (id *RoleID) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("invalid binary length for %s: got %d, expected 8", "RoleID", len(data))
 	}
 	*id = RoleID(binary.BigEndian.Uint64(data))
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *RoleID) UnmarshalBind(s string) error {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return err
+	}
+	*id = RoleID(v)
 	return nil
 }
 
@@ -333,18 +363,18 @@ func (id *SmallID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler.
-func (id SmallID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(int64(id))
+// MarshalJSONTo implements json.MarshalerTo.
+func (id SmallID) MarshalJSONTo(in *jsontext.Encoder) error {
+	return in.WriteToken(jsontext.Int(int64(id)))
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
-func (id *SmallID) UnmarshalJSON(data []byte) error {
-	var v int64
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *SmallID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var n int64
+	if err := json.UnmarshalDecode(dec, &n); err != nil {
+		return fmt.Errorf("SmallID failed UnmarshalJSONFrom: %w", err)
 	}
-	*id = SmallID(v)
+	*id = SmallID(n)
 	return nil
 }
 
@@ -361,6 +391,16 @@ func (id *SmallID) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("invalid binary length for %s: got %d, expected 8", "SmallID", len(data))
 	}
 	*id = SmallID(binary.BigEndian.Uint64(data))
+	return nil
+}
+
+// / UnmarshalBind implements binding.BindUnmarshaller.
+func (id *SmallID) UnmarshalBind(s string) error {
+	v, err := strconv.ParseInt(s, 10, 8)
+	if err != nil {
+		return err
+	}
+	*id = SmallID(v)
 	return nil
 }
 
@@ -426,4 +466,614 @@ func (id *SmallID) Scan(src any) error {
 	default:
 		return fmt.Errorf("cannot scan %T into %s", src, "SmallID")
 	}
+}
+
+// --- Methods for TokenID ---
+
+// String implements fmt.Stringer.
+func (id TokenID) String() string {
+	return hex.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id TokenID) MarshalText() ([]byte, error) {
+	buf := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *TokenID) UnmarshalText(text []byte) error {
+	maxLen := hex.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := hex.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = TokenID(buf[:n])
+	return nil
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id TokenID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(hex.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *TokenID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("TokenID failed UnmarshalJSONFrom: %w", err)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("TokenID failed UnmarshalJSONFrom: %w", err)
+	}
+	*id = TokenID(b)
+	return nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler.
+func (id TokenID) MarshalBinary() ([]byte, error) {
+	return append([]byte(nil), id...), nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+func (id *TokenID) UnmarshalBinary(data []byte) error {
+	*id = append((*id)[:0], data...)
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *TokenID) UnmarshalBind(s string) error {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind TokenID: %w", err)
+	}
+	*id = TokenID(b)
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id TokenID) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return []byte(id), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *TokenID) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := hex.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into TokenID: %w", err)
+		}
+		*id = TokenID(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "TokenID")
+	}
+}
+
+// --- Methods for SecretID ---
+
+// String implements fmt.Stringer.
+func (id SecretID) String() string {
+	return base64.RawURLEncoding.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id SecretID) MarshalText() ([]byte, error) {
+	buf := make([]byte, base64.RawURLEncoding.EncodedLen(len(id)))
+	base64.RawURLEncoding.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *SecretID) UnmarshalText(text []byte) error {
+	maxLen := base64.RawURLEncoding.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := base64.RawURLEncoding.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = SecretID(buf[:n])
+	return nil
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id SecretID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(base64.RawURLEncoding.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *SecretID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("SecretID failed UnmarshalJSONFrom: %w", err)
+	}
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("SecretID failed UnmarshalJSONFrom: %w", err)
+	}
+	*id = SecretID(b)
+	return nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler.
+func (id SecretID) MarshalBinary() ([]byte, error) {
+	return append([]byte(nil), id...), nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+func (id *SecretID) UnmarshalBinary(data []byte) error {
+	*id = append((*id)[:0], data...)
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *SecretID) UnmarshalBind(s string) error {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind SecretID: %w", err)
+	}
+	*id = SecretID(b)
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id SecretID) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return []byte(id), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *SecretID) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := base64.RawURLEncoding.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into SecretID: %w", err)
+		}
+		*id = SecretID(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "SecretID")
+	}
+}
+
+// --- Methods for HexSQLID ---
+
+// String implements fmt.Stringer.
+func (id HexSQLID) String() string {
+	return hex.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id HexSQLID) MarshalText() ([]byte, error) {
+	buf := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *HexSQLID) UnmarshalText(text []byte) error {
+	maxLen := hex.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := hex.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = HexSQLID(buf[:n])
+	return nil
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id HexSQLID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(hex.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *HexSQLID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("HexSQLID failed UnmarshalJSONFrom: %w", err)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("HexSQLID failed UnmarshalJSONFrom: %w", err)
+	}
+	*id = HexSQLID(b)
+	return nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler.
+func (id HexSQLID) MarshalBinary() ([]byte, error) {
+	return append([]byte(nil), id...), nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+func (id *HexSQLID) UnmarshalBinary(data []byte) error {
+	*id = append((*id)[:0], data...)
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *HexSQLID) UnmarshalBind(s string) error {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind HexSQLID: %w", err)
+	}
+	*id = HexSQLID(b)
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id HexSQLID) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return hex.EncodeToString([]byte(id)), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *HexSQLID) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := hex.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into HexSQLID: %w", err)
+		}
+		*id = HexSQLID(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "HexSQLID")
+	}
+}
+
+// --- Methods for Base64SQLID ---
+
+// String implements fmt.Stringer.
+func (id Base64SQLID) String() string {
+	return hex.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id Base64SQLID) MarshalText() ([]byte, error) {
+	buf := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *Base64SQLID) UnmarshalText(text []byte) error {
+	maxLen := hex.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := hex.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = Base64SQLID(buf[:n])
+	return nil
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id Base64SQLID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(hex.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *Base64SQLID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("Base64SQLID failed UnmarshalJSONFrom: %w", err)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("Base64SQLID failed UnmarshalJSONFrom: %w", err)
+	}
+	*id = Base64SQLID(b)
+	return nil
+}
+
+// MarshalBinary implements encoding.BinaryMarshaler.
+func (id Base64SQLID) MarshalBinary() ([]byte, error) {
+	return append([]byte(nil), id...), nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+func (id *Base64SQLID) UnmarshalBinary(data []byte) error {
+	*id = append((*id)[:0], data...)
+	return nil
+}
+
+// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *Base64SQLID) UnmarshalBind(s string) error {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind Base64SQLID: %w", err)
+	}
+	*id = Base64SQLID(b)
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id Base64SQLID) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return base64.RawURLEncoding.EncodeToString([]byte(id)), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *Base64SQLID) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := base64.RawURLEncoding.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into Base64SQLID: %w", err)
+		}
+		*id = Base64SQLID(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "Base64SQLID")
+	}
+}
+
+// --- Methods for CustomSecretID ---
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id CustomSecretID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(base64.RawURLEncoding.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *CustomSecretID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("CustomSecretID failed UnmarshalJSONFrom: %w", err)
+	}
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("CustomSecretID failed UnmarshalJSONFrom: %w", err)
+	}
+	*id = CustomSecretID(b)
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id CustomSecretID) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return []byte(id), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *CustomSecretID) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := base64.RawURLEncoding.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into CustomSecretID: %w", err)
+		}
+		*id = CustomSecretID(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "CustomSecretID")
+	}
+}
+
+// --- Methods for SQLOnlyUUID ---
+
+// Value implements driver.Valuer.
+func (id SQLOnlyUUID) Value() (driver.Value, error) {
+	return uuid.UUID(id).String(), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *SQLOnlyUUID) Scan(src any) error {
+	if src == nil {
+		*id = SQLOnlyUUID(uuid.Nil())
+		return nil
+	}
+
+	switch src := src.(type) {
+	case []byte:
+		if len(src) == 16 {
+			copy(id[:], src)
+			return nil
+		}
+		return (*uuid.UUID)(id).UnmarshalText(src)
+	case string:
+		u, err := uuid.Parse(src)
+		if err != nil {
+			return err
+		}
+		*id = SQLOnlyUUID(u)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "SQLOnlyUUID")
+	}
+}
+
+// --- Methods for Metadata ---
+
+// String implements fmt.Stringer.
+func (id Metadata) String() string {
+	b, _ := json.Marshal((map[string]any)(id))
+	return string(b)
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id Metadata) MarshalText() ([]byte, error) {
+	return json.Marshal((map[string]any)(id))
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *Metadata) UnmarshalText(text []byte) error {
+	return json.Unmarshal(text, (*map[string]any)(id))
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id Metadata) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return json.MarshalEncode(enc, (map[string]any)(id))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *Metadata) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if err := json.UnmarshalDecode(dec, (*map[string]any)(id)); err != nil {
+		return fmt.Errorf("Metadata failed UnmarshalJSONFrom: %w", err)
+	}
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id Metadata) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal((map[string]any)(id))
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal Metadata to JSON: %w", err)
+	}
+	return string(b), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *Metadata) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "Metadata")
+	}
+	return json.Unmarshal(data, (*map[string]any)(id))
+}
+
+// --- Methods for FlexData ---
+
+// String implements fmt.Stringer.
+func (id FlexData) String() string {
+	b, _ := json.Marshal((map[any]any)(id))
+	return string(b)
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id FlexData) MarshalText() ([]byte, error) {
+	return json.Marshal((map[any]any)(id))
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *FlexData) UnmarshalText(text []byte) error {
+	return json.Unmarshal(text, (*map[any]any)(id))
+}
+
+// MarshalJSONTo implements json.MarshalerTo.
+func (id FlexData) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return json.MarshalEncode(enc, (map[any]any)(id))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *FlexData) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if err := json.UnmarshalDecode(dec, (*map[any]any)(id)); err != nil {
+		return fmt.Errorf("FlexData failed UnmarshalJSONFrom: %w", err)
+	}
+	return nil
+}
+
+// Value implements driver.Valuer.
+func (id FlexData) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal((map[any]any)(id))
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal FlexData to JSON: %w", err)
+	}
+	return string(b), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *FlexData) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %T into %s", src, "FlexData")
+	}
+	return json.Unmarshal(data, (*map[any]any)(id))
 }

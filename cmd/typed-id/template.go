@@ -92,6 +92,90 @@ func (id *%s) UnmarshalText(text []byte) error {
 }
 
 		`, name, name, name))
+
+	case KindBytes:
+		if t.ByteEncoding == ByteEncodingBase64 {
+			b.WriteString(fmt.Sprintf(`// String implements fmt.Stringer.
+func (id %[1]s) String() string {
+	return base64.RawURLEncoding.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id %[1]s) MarshalText() ([]byte, error) {
+	buf := make([]byte, base64.RawURLEncoding.EncodedLen(len(id)))
+	base64.RawURLEncoding.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *%[1]s) UnmarshalText(text []byte) error {
+	maxLen := base64.RawURLEncoding.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := base64.RawURLEncoding.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = %[1]s(buf[:n])
+	return nil
+}
+
+`, name))
+		} else {
+			b.WriteString(fmt.Sprintf(`// String implements fmt.Stringer.
+func (id %[1]s) String() string {
+	return hex.EncodeToString([]byte(id))
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id %[1]s) MarshalText() ([]byte, error) {
+	buf := make([]byte, hex.EncodedLen(len(id)))
+	hex.Encode(buf, []byte(id))
+	return buf, nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *%[1]s) UnmarshalText(text []byte) error {
+	maxLen := hex.DecodedLen(len(text))
+	buf := (*id)[:0]
+	if cap(buf) < maxLen {
+		buf = make([]byte, maxLen)
+	} else {
+		buf = buf[:maxLen]
+	}
+	n, err := hex.Decode(buf, text)
+	if err != nil {
+		return err
+	}
+	*id = %[1]s(buf[:n])
+	return nil
+}
+
+`, name))
+		}
+
+	case KindMap:
+		b.WriteString(fmt.Sprintf(`// String implements fmt.Stringer.
+func (id %[1]s) String() string {
+	b, _ := json.Marshal((%[2]s)(id))
+	return string(b)
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (id %[1]s) MarshalText() ([]byte, error) {
+	return json.Marshal((%[2]s)(id))
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (id *%[1]s) UnmarshalText(text []byte) error {
+	return json.Unmarshal(text, (*%[2]s)(id))
+}
+
+`, name, t.Underlying))
 	}
 
 	return b.String()
@@ -175,6 +259,67 @@ func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 }
 
 `, name))
+
+	case KindBytes:
+		if t.ByteEncoding == ByteEncodingBase64 {
+			b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(base64.RawURLEncoding.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
+	}
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
+	}
+	*id = %[1]s(b)
+	return nil
+}
+
+`, name))
+		} else {
+			b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String(hex.EncodeToString([]byte(id))))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	var s string
+	if err := json.UnmarshalDecode(dec, &s); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
+	}
+	*id = %[1]s(b)
+	return nil
+}
+
+`, name))
+		}
+
+	case KindMap:
+		b.WriteString(fmt.Sprintf(`// MarshalJSONTo implements json.MarshalerTo.
+func (id %[1]s) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return json.MarshalEncode(enc, (%[2]s)(id))
+}
+
+// UnmarshalJSONFrom implements json.UnmarshalerFrom.
+func (id *%[1]s) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	if err := json.UnmarshalDecode(dec, (*%[2]s)(id)); err != nil {
+		return fmt.Errorf("%[1]s failed UnmarshalJSONFrom: %%w", err)
+	}
+	return nil
+}
+
+`, name, t.Underlying))
 	}
 
 	return b.String()
@@ -233,6 +378,21 @@ func (id *%s) UnmarshalBinary(data []byte) error {
 }
 
 `, name, name, name, name))
+
+	case KindBytes:
+		b.WriteString(fmt.Sprintf(`// MarshalBinary implements encoding.BinaryMarshaler.
+func (id %[1]s) MarshalBinary() ([]byte, error) {
+	return append([]byte(nil), id...), nil
+}
+
+// UnmarshalBinary implements encoding.BinaryUnmarshaler.
+func (id *%[1]s) UnmarshalBinary(data []byte) error {
+	*id = append((*id)[:0], data...)
+	return nil
+}
+
+`, name))
+		// KindMap: binary not supported, return empty string
 	}
 
 	return b.String()
@@ -271,14 +431,14 @@ func (id *%s) Scan(src any) error {
 `, name, name, name, name, name))
 	case KindUUID:
 		b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
-func (id %s) Value() (driver.Value, error) {
+func (id %[1]s) Value() (driver.Value, error) {
 	return uuid.UUID(id).String(), nil
 }
 
 // Scan implements sql.Scanner.
-func (id *%s) Scan(src any) error {
+func (id *%[1]s) Scan(src any) error {
 	if src == nil {
-		*id = %s(uuid.Nil())
+		*id = %[1]s(uuid.Nil())
 		return nil
 	}
 
@@ -288,15 +448,20 @@ func (id *%s) Scan(src any) error {
 			copy(id[:], src)
 			return nil
 		}
-		return id.UnmarshalText(src)
+		return (*uuid.UUID)(id).UnmarshalText(src)
 	case string:
-		return id.UnmarshalText([]byte(src))
+		u, err := uuid.Parse(src)
+		if err != nil {
+			return err
+		}
+		*id = %[1]s(u)
+		return nil
 	default:
-		return fmt.Errorf("cannot scan %%T into %%s", src, "%s")
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
 	}
 }
 
-`, name, name, name, name))
+`, name))
 
 	case KindInt:
 		b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
@@ -431,6 +596,175 @@ func (id *%s) Scan(src any) error {
 }
 
 `, name, name, name, name, name, name, name, name, name, name, name, name, bitSize, name, bitSize, name, name, name))
+
+	case KindBytes:
+		switch t.SQLEncoding {
+		case SQLEncodingHex:
+			b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
+func (id %[1]s) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return hex.EncodeToString([]byte(id)), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *%[1]s) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := hex.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into %[1]s: %%w", err)
+		}
+		*id = %[1]s(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
+	}
+}
+
+`, name))
+
+		case SQLEncodingBase64:
+			b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
+func (id %[1]s) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return base64.RawURLEncoding.EncodeToString([]byte(id)), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *%[1]s) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := base64.RawURLEncoding.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into %[1]s: %%w", err)
+		}
+		*id = %[1]s(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
+	}
+}
+
+`, name))
+
+		default: // SQLEncodingBytes
+			if t.ByteEncoding == ByteEncodingBase64 {
+				b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
+func (id %[1]s) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return []byte(id), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *%[1]s) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := base64.RawURLEncoding.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into %[1]s: %%w", err)
+		}
+		*id = %[1]s(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
+	}
+}
+
+`, name))
+			} else {
+				b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
+func (id %[1]s) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	return []byte(id), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *%[1]s) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	switch v := src.(type) {
+	case []byte:
+		*id = append((*id)[:0], v...)
+		return nil
+	case string:
+		b, err := hex.DecodeString(v)
+		if err != nil {
+			return fmt.Errorf("cannot scan string into %[1]s: %%w", err)
+		}
+		*id = %[1]s(b)
+		return nil
+	default:
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
+	}
+}
+
+`, name))
+			}
+		}
+
+	case KindMap:
+		b.WriteString(fmt.Sprintf(`// Value implements driver.Valuer.
+func (id %[1]s) Value() (driver.Value, error) {
+	if id == nil {
+		return nil, nil
+	}
+	b, err := json.Marshal((%[2]s)(id))
+	if err != nil {
+		return nil, fmt.Errorf("cannot marshal %[1]s to JSON: %%w", err)
+	}
+	return string(b), nil
+}
+
+// Scan implements sql.Scanner.
+func (id *%[1]s) Scan(src any) error {
+	if src == nil {
+		*id = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("cannot scan %%T into %%s", src, "%[1]s")
+	}
+	return json.Unmarshal(data, (*%[2]s)(id))
+}
+
+`, name, t.Underlying))
 	}
 
 	return b.String()
@@ -488,6 +822,34 @@ func (id *%s) UnmarshalBind(s string) error {
 }
 
 `, name, bitSize, name))
+
+	case KindBytes:
+		if t.ByteEncoding == ByteEncodingBase64 {
+			b.WriteString(fmt.Sprintf(`// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%[1]s) UnmarshalBind(s string) error {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind %[1]s: %%w", err)
+	}
+	*id = %[1]s(b)
+	return nil
+}
+
+`, name))
+		} else {
+			b.WriteString(fmt.Sprintf(`// UnmarshalBind implements binding.BindUnmarshaller.
+func (id *%[1]s) UnmarshalBind(s string) error {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal bind %[1]s: %%w", err)
+	}
+	*id = %[1]s(b)
+	return nil
+}
+
+`, name))
+		}
+		// KindMap: binder not supported, return empty string
 	}
 	return b.String()
 }

@@ -13,10 +13,20 @@ func run(args []string) error {
 
 	var (
 		typeFlag    = fs.String("type", "", "Comma-separated list of type names to generate code for (required)")
-		presetsFlag = fs.String("presets", "all", "Comma-separated list of presets: text, json, binary, sql/db, all")
-		outputFlag  = fs.String("output", "", "Output file name (default: <type_lower>.typed_id.go)")
-		packageFlag = fs.String("package", "", "Override package name for generated code")
-		dirFlag     = fs.String("dir", ".", "Directory of the target Go package")
+		presetsFlag = fs.String(
+			"presets",
+			"all",
+			"Comma-separated list of presets: text, json, binary, sql/db, binder, all",
+		)
+		outputFlag     = fs.String("output", "", "Output file name (default: <type_lower>.typed_id.go)")
+		packageFlag    = fs.String("package", "", "Override package name for generated code")
+		dirFlag        = fs.String("dir", ".", "Directory of the target Go package")
+		byteEncFlag    = fs.String("byte-encoding", "hex", "Default encoding for []byte types: hex, base64")
+		sqlByteEncFlag = fs.String(
+			"sql-byte-encoding",
+			"bytes",
+			"Default SQL storage for []byte types: bytes, hex, base64",
+		)
 	)
 
 	fs.Usage = func() {
@@ -63,6 +73,16 @@ func run(args []string) error {
 		return err
 	}
 
+	defaultByteEnc := ByteEncoding(*byteEncFlag)
+	if defaultByteEnc != ByteEncodingHex && defaultByteEnc != ByteEncodingBase64 {
+		return fmt.Errorf("invalid -byte-encoding value %q (supported: hex, base64)", *byteEncFlag)
+	}
+
+	defaultSQLEnc := SQLEncoding(*sqlByteEncFlag)
+	if defaultSQLEnc != SQLEncodingBytes && defaultSQLEnc != SQLEncodingHex && defaultSQLEnc != SQLEncodingBase64 {
+		return fmt.Errorf("invalid -sql-byte-encoding value %q (supported: bytes, hex, base64)", *sqlByteEncFlag)
+	}
+
 	pkgInfo, types, err := InspectTypes(*dirFlag, rawTypeNames)
 	if err != nil {
 		return fmt.Errorf("inspection failed: %w", err)
@@ -74,9 +94,11 @@ func run(args []string) error {
 	}
 
 	code, err := Generate(GenerateOptions{
-		PackageName: pkgName,
-		Types:       types,
-		Presets:     presets,
+		PackageName:         pkgName,
+		Types:               types,
+		Presets:             presets,
+		DefaultByteEncoding: defaultByteEnc,
+		DefaultSQLEncoding:  defaultSQLEnc,
 	})
 	if err != nil {
 		return fmt.Errorf("generation failed: %w", err)

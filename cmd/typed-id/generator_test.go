@@ -50,6 +50,46 @@ func TestGenerateSource(t *testing.T) {
 			Kind:        KindUint,
 			Underlying:  "uint32",
 		},
+		{
+			Name:         "TokenID",
+			PackageName:  "models",
+			Kind:         KindBytes,
+			Underlying:   "[]byte",
+			ByteEncoding: ByteEncodingHex,
+		},
+		{
+			Name:         "SecretID",
+			PackageName:  "models",
+			Kind:         KindBytes,
+			Underlying:   "[]byte",
+			ByteEncoding: ByteEncodingBase64,
+		},
+		{
+			Name:         "HexSQLID",
+			PackageName:  "models",
+			Kind:         KindBytes,
+			Underlying:   "[]byte",
+			SQLEncoding:  SQLEncodingHex,
+		},
+		{
+			Name:        "Metadata",
+			PackageName: "models",
+			Kind:        KindMap,
+			Underlying:  "map[string]any",
+		},
+		{
+			Name:        "CustomJSONID",
+			PackageName: "models",
+			Kind:        KindString,
+			Underlying:  "string",
+			Presets:     []Preset{PresetJSON},
+		},
+		{
+			Name:        "ItemUUID",
+			PackageName: "models",
+			Kind:        KindUUID,
+			Underlying:  "uuid.UUID",
+		},
 	}
 
 	opts := GenerateOptions{
@@ -66,6 +106,40 @@ func TestGenerateSource(t *testing.T) {
 	assert.Contains(t, string(code), "func (id OrderID) MarshalJSONTo(in *jsontext.Encoder) error")
 	assert.Contains(t, string(code), "func (id *AccountID) Scan(src any) error")
 
+	// CustomJSONID should ONLY have JSON methods, not String or Scan
+	assert.Contains(t, string(code), "func (id CustomJSONID) MarshalJSONTo(in *jsontext.Encoder) error")
+	assert.NotContains(t, string(code), "func (id CustomJSONID) String() string")
+	assert.NotContains(t, string(code), "func (id *CustomJSONID) Scan(src any) error")
+
+	// ItemUUID (UUID)
+	assert.Contains(t, string(code), "func (id ItemUUID) String() string")
+	assert.Contains(t, string(code), "func (id *ItemUUID) Scan(src any) error")
+	assert.Contains(t, string(code), "(*uuid.UUID)(id).UnmarshalText(src)")
+	assert.Contains(t, string(code), "uuid.Parse(src)")
+	assert.NotContains(t, string(code), "id.UnmarshalText")
+
+	// Bytes hex
+	assert.Contains(t, string(code), "func (id TokenID) String() string")
+	assert.Contains(t, string(code), "hex.EncodeToString")
+	assert.Contains(t, string(code), "func (id *TokenID) UnmarshalBind(s string) error")
+	// TokenID defaults to raw []byte for SQL
+	assert.Contains(t, string(code), "func (id TokenID) Value() (driver.Value, error)")
+	assert.Contains(t, string(code), "return []byte(id), nil")
+
+	// Bytes base64
+	assert.Contains(t, string(code), "func (id SecretID) String() string")
+	assert.Contains(t, string(code), "base64.RawURLEncoding")
+
+	// HexSQLID uses hex in SQL Value
+	assert.Contains(t, string(code), "func (id HexSQLID) Value() (driver.Value, error)")
+
+	// Map
+	assert.Contains(t, string(code), "func (id Metadata) String() string")
+	assert.Contains(t, string(code), "func (id *Metadata) Scan(src any) error")
+	// Maps should not have binary or binder presets
+	assert.NotContains(t, string(code), "func (id Metadata) MarshalBinary()")
+	assert.NotContains(t, string(code), "func (id *Metadata) UnmarshalBind(")
+
 	// Verify we can write and parse as valid Go file
 	tempDir := t.TempDir()
 	outFile := filepath.Join(tempDir, "models_gen.go")
@@ -74,4 +148,39 @@ func TestGenerateSource(t *testing.T) {
 
 	_, err = ParsePackage(tempDir)
 	require.NoError(t, err)
+}
+
+func TestGenerateSource_UUID_SQLOnly(t *testing.T) {
+	types := []*TypeInfo{
+		{
+			Name:        "SQLOnlyUUID",
+			PackageName: "models",
+			Kind:        KindUUID,
+			Underlying:  "uuid.UUID",
+			Presets:     []Preset{PresetSQL},
+		},
+	}
+
+	opts := GenerateOptions{
+		PackageName: "models",
+		Types:       types,
+		Presets:     []Preset{PresetSQL},
+	}
+
+	code, err := Generate(opts)
+	require.NoError(t, err)
+
+	codeStr := string(code)
+	assert.Contains(t, codeStr, "func (id SQLOnlyUUID) Value() (driver.Value, error)")
+	assert.Contains(t, codeStr, "func (id *SQLOnlyUUID) Scan(src any) error")
+	assert.Contains(t, codeStr, "(*uuid.UUID)(id).UnmarshalText(src)")
+	assert.Contains(t, codeStr, "uuid.Parse(src)")
+	// Crucial check: must NOT reference id.UnmarshalText which would fail compilation without text preset
+	assert.NotContains(t, codeStr, "id.UnmarshalText")
+	assert.NotContains(t, codeStr, "func (id SQLOnlyUUID) String() string")
+	assert.NotContains(t, codeStr, "func (id SQLOnlyUUID) MarshalText()")
+
+	assert.Contains(t, codeStr, `"database/sql/driver"`)
+	assert.Contains(t, codeStr, `"fmt"`)
+	assert.Contains(t, codeStr, `"uuid"`)
 }
